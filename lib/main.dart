@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'features/authentication/screens/onboarding/onboarding.dart';
+import 'package:get_storage/get_storage.dart';
+
+import 'features/authentication/screens/splash/splash.dart';
+import 'utils/constants/text_strings.dart';
 import 'utils/theme/theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await GetStorage.init();
   runApp(const AuthUiApp());
 }
 
@@ -15,12 +19,12 @@ class AuthUiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Auth UI',
+      title: TTexts.appName,
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: TAppTheme.lightTheme,
       darkTheme: TAppTheme.darkTheme,
-      home: const OnBoardingScreen(),
+      home: const SplashScreen(),
     );
   }
 }

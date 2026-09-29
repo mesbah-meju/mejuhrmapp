@@ -12,15 +12,27 @@ class THelperFunctions {
     return Theme.of(context).brightness == Brightness.dark;
   }
 
-  static Size screenSize() {
-    return MediaQuery.of(Get.context!).size;
+  static Size screenSize([BuildContext? context]) {
+    final ctx = context ?? Get.context;
+    if (ctx != null) {
+      return MediaQuery.of(ctx).size;
+    }
+    return const Size(390, 844);
   }
 
-  static double screenHeight() {
-    return MediaQuery.of(Get.context!).size.height;
+  static double screenHeight([BuildContext? context]) {
+    final ctx = context ?? Get.context;
+    if (ctx != null) {
+      return MediaQuery.of(ctx).size.height;
+    }
+    return 844.0;
   }
 
-  static double screenWidth() {
-    return MediaQuery.of(Get.context!).size.width;
+  static double screenWidth([BuildContext? context]) {
+    final ctx = context ?? Get.context;
+    if (ctx != null) {
+      return MediaQuery.of(ctx).size.width;
+    }
+    return 390.0;
   }
 }

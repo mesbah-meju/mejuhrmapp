@@ -3,48 +3,57 @@ class TTexts {
   static const String skip = "Skip";
   static const String done = "Done";
   static const String submit = "Submit";
-  static const String appName = "T-Store";
+  static const String appName = "Metro HRM";
+  static const String appTagline = "Smart Workforce & HR Management";
   static const String tContinue = "Continue";
+  static const String getStarted = "Get Started";
 
-  static const String onBoardingTitle1 = "Choose your product";
-  static const String onBoardingTitle2 = "Select Payment Method";
-  static const String onBoardingTitle3 = "Deliver at your door step";
+  // Splash Screen
+  static const String splashTitle = "Metro HRM";
+  static const String splashSubTitle = "Workforce Solutions at Your Fingertips";
 
-  static const String onBoardingSubTitle1 = "Welcome to a World of Limitless Choices - Your Perfect Product Awaits!";
-  static const String onBoardingSubTitle2 = "For Seamless Transactions, Choose Your Payment Path - Your Convenience, Our Priority!";
-  static const String onBoardingSubTitle3 = "From Our Doorstep to Yours - Swift, Secure, and Contactless Delivery!";
+  // HRM Onboarding
+  static const String onBoardingTitle1 = "Smart Geo-Attendance";
+  static const String onBoardingTitle2 = "Leaves & Payroll Hub";
+  static const String onBoardingTitle3 = "Workforce & Team Insights";
 
+  static const String onBoardingSubTitle1 = "Clock in seamlessly with GPS geofencing, facial recognition, and automated shift scheduling.";
+  static const String onBoardingSubTitle2 = "Request leaves, track approvals in real-time, view salary slips, and manage tax documentation.";
+  static const String onBoardingSubTitle3 = "Stay connected with your team, monitor KPIs, celebrate milestones, and access company updates.";
+
+  // Form Fields & Auth
   static const String firstName = "First Name";
   static const String lastName = "Last Name";
-  static const String email = "E-Mail";
+  static const String email = "Company E-Mail / Employee ID";
   static const String password = "Password";
   static const String newPassword = "New Password";
   static const String username = "Username";
   static const String phoneNo = "Phone Number";
   static const String rememberMe = "Remember Me";
-  static const String forgetPassword = "Forget Password?";
-  static const String signIn = "Sign In";
-  static const String createAccount = "Create Account";
-  static const String orSignInWith = "or sign in with";
-  static const String orSignUpWith = "or sign up with";
+  static const String forgetPassword = "Forgot Password?";
+  static const String signIn = "Sign In to Portal";
+  static const String createAccount = "Register New Account";
+  static const String orSignInWith = "or authenticate with";
+  static const String orSignUpWith = "or register with";
   static const String iAgreeTo = "I agree to";
   static const String privacyPolicy = "Privacy Policy";
-  static const String termsOfUse = "Terms of use";
-  static const String resendEmail = "Resend Email";
+  static const String termsOfUse = "Terms of Service";
+  static const String resendEmail = "Resend Verification Code";
 
-  static const String loginTitle = "Welcome back,";
-  static const String loginSubTitle = "Discover Limitless Choices and Unmatched Convenience.";
-  static const String signupTitle = "Let’s create your account";
-  static const String forgetPasswordTitle = "Forget password";
+  static const String loginTitle = "Welcome to Metro HRM";
+  static const String loginSubTitle = "Sign in to access your attendance, leaves, and employee dashboard.";
+  static const String signupTitle = "Join Your Organization";
+  static const String forgetPasswordTitle = "Reset Portal Access";
   static const String forgetPasswordSubTitle =
-      "Don’t worry sometimes people can forget too, enter your email and we will send you a password reset link.";
-  static const String changeYourPasswordTitle = "Password Reset Email Sent";
+      "Enter your registered company email address and we'll send you a secure verification link.";
+  static const String changeYourPasswordTitle = "Reset Link Sent";
   static const String changeYourPasswordSubTitle =
-      "Your Account Security is Our Priority! We've Sent You a Secure Link to Safely Change Your Password and Keep Your Account Protected.";
-  static const String confirmEmail = "Verify your email address!";
+      "We have dispatched a password recovery instruction to your corporate email. Follow the steps to secure your account.";
+  static const String confirmEmail = "Verify Corporate Email";
   static const String confirmEmailSubTitle =
-      "Congratulations! Your Account Awaits: Verify Your Email to Start Shopping and Experience a World of Unrivaled Deals and Personalized Offers.";
-  static const String yourAccountCreatedTitle = "Your account successfully created!";
+      "Please verify your corporate email to activate your employee profile and access workforce tools.";
+  static const String yourAccountCreatedTitle = "Employee Profile Ready!";
   static const String yourAccountCreatedSubTitle =
-      "Welcome to Your Ultimate Shopping Destination: Your Account is Created, Unleash the Joy of Seamless Online Shopping!";
+      "Your HRM account has been created successfully. You can now clock in and explore your workforce workspace.";
 }
+
