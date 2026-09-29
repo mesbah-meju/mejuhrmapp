@@ -91,12 +91,7 @@ class LoginController extends GetxController {
         // Server permissions remain authoritative. Route according to selected mode
         if (selectedMode.value == 'manager') {
           Get.offAll(
-            () => ManagerDashboardScreen(
-              onSwitchToStaffMode: () {
-                setMode('staff');
-                Get.offAll(() => const HrmDashboardScreen());
-              },
-            ),
+            () => const ManagerDashboardScreen(),
             transition: Transition.fadeIn,
           );
         } else {

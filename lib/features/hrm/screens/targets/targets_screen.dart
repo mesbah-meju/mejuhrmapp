@@ -1609,6 +1609,23 @@ class _TargetsScreenState extends State<TargetsScreen> with SingleTickerProvider
                         minHeight: 7,
                       ),
                     ),
+                    const SizedBox(height: 14),
+
+                    // View Full Dynamic Report Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showDynamicTargetAnalyticsModal(target),
+                        icon: const Icon(Icons.analytics_outlined, size: 16),
+                        label: const Text("View Full Dynamic Analytics Report", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          foregroundColor: const Color(0xFF2563EB),
+                          side: const BorderSide(color: Color(0xFFBFDBFE)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1861,6 +1878,174 @@ class _TargetsScreenState extends State<TargetsScreen> with SingleTickerProvider
           ),
         ),
       ),
+    );
+  }
+
+  void _showDynamicTargetAnalyticsModal(SalesTarget target) {
+    final pct = target.progressPercentage;
+    final isOver = target.status == TargetStatus.overAchieved;
+    final isExact = target.status == TargetStatus.achieved;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.88,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                ),
+                child: Column(
+                  children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFCBD5E1), borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: target.iconBg, borderRadius: BorderRadius.circular(10)),
+                              child: Icon(target.icon, color: target.iconColor, size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("${target.name} Analytics Report", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                Text("Target ID: ${target.id} • ${target.period.name.toUpperCase()}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Body
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Banner Card
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: (isOver || isExact)
+                                ? [const Color(0xFF065F46), const Color(0xFF059669)]
+                                : [const Color(0xFF1E3A8A), const Color(0xFF2563EB)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("TOTAL ATTAINED PROGRESS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF93C5FD))),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      target.formatDisplayWithUnit(target.achieved),
+                                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                                  child: Text("${pct.toStringAsFixed(0)}% Reached", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: LinearProgressIndicator(
+                                value: (pct / 100).clamp(0.0, 1.0),
+                                minHeight: 8,
+                                backgroundColor: Colors.white.withOpacity(0.2),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Goal: ${target.formatDisplayWithUnit(target.targetValue)}", style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0))),
+                                Text(
+                                  isOver ? "Surplus: +${target.formatDisplayWithUnit(target.overAchieved)}" : "Remaining: ${target.formatDisplayWithUnit(target.remaining)}",
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Itemized Sales Entries Table
+                      const Text("CONTRIBUTING SALES ENTRIES", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E8F0))),
+                        child: Column(
+                          children: target.entries.map((entry) {
+                            return ListTile(
+                              dense: true,
+                              title: Text(entry.client.isEmpty ? "Direct Counter Sale" : entry.client, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              subtitle: Text("Time: ${entry.time} • ${entry.date} ${entry.notes.isNotEmpty ? '• ${entry.notes}' : ''}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                              trailing: Text(target.formatDisplayWithUnit(entry.amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: const Color(0xFF0F172A),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text("Close Target Analytics", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
