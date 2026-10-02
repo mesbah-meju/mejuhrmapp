@@ -14,7 +14,9 @@ class OnBoardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(OnBoardingController());
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Stack(
           children: [
@@ -23,17 +25,17 @@ class OnBoardingScreen extends StatelessWidget {
               onPageChanged: controller.updatePageIndicator,
               children: const [
                 OnBoardingPage(
-                  slideType: HrmSlideType.attendance,
+                  slideType: HrmSlideType.salesPerformance,
                   title: TTexts.onBoardingTitle1,
                   subTitle: TTexts.onBoardingSubTitle1,
                 ),
                 OnBoardingPage(
-                  slideType: HrmSlideType.payroll,
+                  slideType: HrmSlideType.targetsProgress,
                   title: TTexts.onBoardingTitle2,
                   subTitle: TTexts.onBoardingSubTitle2,
                 ),
                 OnBoardingPage(
-                  slideType: HrmSlideType.team,
+                  slideType: HrmSlideType.commissionGrowth,
                   title: TTexts.onBoardingTitle3,
                   subTitle: TTexts.onBoardingSubTitle3,
                 ),

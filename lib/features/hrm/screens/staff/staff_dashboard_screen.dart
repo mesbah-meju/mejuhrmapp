@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 
+import 'package:get/get.dart';
 import 'package:auth_ui_app/common/widgets/connectivity_status_banner.dart';
-import 'package:auth_ui_app/features/hrm/screens/attendance/attendance_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/me/me_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/payroll/payroll_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/targets/targets_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/tasks/tasks_screen.dart';
+import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/me_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_attendance_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_payroll_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_targets_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_tasks_screen.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
 class HrmDashboardScreen extends StatefulWidget {
   const HrmDashboardScreen({super.key});
@@ -451,66 +452,79 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
               ),
               const SizedBox(width: 8),
 
-              // Alert Badge
+              // Alert Badge & Button
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                child: Obx(() {
+                  final status = AttendanceController.instance.todayStatus.value;
+                  final isClocked = status?.isClockedIn ?? false;
+                  final isBusy = AttendanceController.instance.isClocking.value;
+
+                  return Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEF4444),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
-                      ),
-                      const SizedBox(width: 4),
-                      const Expanded(
-                        child: Text(
-                          "You haven't checked in today!",
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFFDC2626),
-                            fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isClocked ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: isClocked ? const Color(0xFF059669) : const Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isClocked ? Icons.check : Icons.priority_high_rounded,
+                                  color: Colors.white,
+                                  size: 10,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  isClocked ? "Checked In (${status?.clockIn ?? ''})" : "You haven't checked in!",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isClocked ? const Color(0xFF065F46) : const Color(0xFFDC2626),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: isBusy ? null : AttendanceController.instance.toggleClockInOut,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isClocked ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          minimumSize: const Size(0, 34),
+                        ),
+                        child: isBusy
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
+                              )
+                            : Text(
+                                isClocked ? "Clock Out" : "Clock In",
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Check In Now Button
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isCheckedIn = !_isCheckedIn;
-                  });
-                  THelperFunctions.showSnackBar(
-                    _isCheckedIn ? "Checked In Successfully!" : "Checked Out Successfully!",
                   );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isCheckedIn ? const Color(0xFF059669) : const Color(0xFFEF4444),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                  minimumSize: const Size(0, 34),
-                ),
-                child: Text(
-                  _isCheckedIn ? "Checked In" : "Check In Now",
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
+                }),
               ),
             ],
           ),
@@ -630,466 +644,483 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
   // 3. DAILY TASKS SECTION
   // ==========================================
   Widget _buildDailyTasksCard() {
-    final completedCount = _tasks.where((t) => t['completed'] == true).length;
-    final totalCount = _tasks.length;
-    final progress = completedCount / totalCount;
+    return Obx(() {
+      final summary = TaskController.instance.taskSummary.value;
+      final tasks = TaskController.instance.todayTasks;
+      final isClocked = TaskController.instance.todayResponse.value?.isClockedIn ?? AttendanceController.instance.todayStatus.value?.isClockedIn ?? false;
+      final completedCount = summary?.completedTasks ?? 0;
+      final totalCount = summary?.totalTasks ?? (tasks.isNotEmpty ? tasks.length : 1);
+      final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
+      final pendingCount = summary?.pendingTasks ?? (tasks.where((t) => !t.isCompleted).length);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 3.5,
-            constraints: const BoxConstraints(minHeight: 60),
-            margin: const EdgeInsets.only(right: 14),
-            decoration: BoxDecoration(color: const Color(0xFFD97706), borderRadius: BorderRadius.circular(4)),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.025),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 3.5,
+              constraints: const BoxConstraints(minHeight: 60),
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(color: const Color(0xFFD97706), borderRadius: BorderRadius.circular(4)),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD97706),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.check_box_rounded, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    "Daily Tasks",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "${totalCount - completedCount} tasks pending today!",
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFFDC2626),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => setState(() => _currentNavIndex = 1),
-                    child: const Row(
-                      children: [
-                        Text(
-                          "View All",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF0F172A),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Content: Left Circular Progress, Right Tasks List
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Circular Donut Progress (2/5)
-              SizedBox(
-                width: 105,
-                height: 105,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CustomPaint(
-                      size: const Size(105, 105),
-                      painter: _DonutProgressPainter(
-                        progress: progress,
-                        progressColor: const Color(0xFF059669),
-                        backgroundColor: const Color(0xFFE2E8F0),
-                        strokeWidth: 10,
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "$completedCount/$totalCount",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const Text(
-                          "Completed",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Task Items
-              Expanded(
-                child: Column(
-                  children: List.generate(_tasks.length, (index) {
-                    final task = _tasks[index];
-                    final isDone = task['completed'] as bool;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            task['completed'] = !isDone;
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Icon(
-                              isDone ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                              color: isDone ? const Color(0xFF059669) : const Color(0xFF94A3B8),
-                              size: 18,
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD97706),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                task['title'],
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDone ? const Color(0xFF64748B) : const Color(0xFF0F172A),
-                                  fontWeight: FontWeight.w500,
-                                  decoration: isDone ? TextDecoration.lineThrough : null,
+                            child: const Icon(Icons.check_box_rounded, color: Colors.white, size: 18),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            "Daily Tasks",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          if (!isClocked)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                "Clock in to view",
+                                style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: pendingCount > 0 ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF059669),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      pendingCount > 0 ? Icons.priority_high_rounded : Icons.check,
+                                      color: Colors.white,
+                                      size: 10,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    pendingCount > 0 ? "$pendingCount pending" : "All completed!",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: pendingCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => setState(() => _currentNavIndex = 1),
+                            child: const Row(
+                              children: [
+                                Text(
+                                  "View All",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF0F172A),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
+                              ],
                             ),
-                            Text(
-                              task['time'],
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  }),
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Content
+                  if (!isClocked)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        "Please clock in with GPS to unlock today's branch tasks.",
+                        style: TextStyle(fontSize: 12, color: const Color(0xFF64748B).withValues(alpha: 0.9)),
+                      ),
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Circular Donut Progress
+                        SizedBox(
+                          width: 95,
+                          height: 95,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CustomPaint(
+                                size: const Size(95, 95),
+                                painter: _DonutProgressPainter(
+                                  progress: progress,
+                                  progressColor: const Color(0xFF059669),
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  strokeWidth: 9,
+                                ),
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    "$completedCount/$totalCount",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const Text(
+                                    "Completed",
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Task Items List
+                        Expanded(
+                          child: Column(
+                            children: tasks.take(4).map((task) {
+                              final isDone = task.isCompleted;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: GestureDetector(
+                                  onTap: task.canToggle ? () => TaskController.instance.toggleTask(task) : null,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isDone ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                                        color: isDone ? const Color(0xFF059669) : const Color(0xFF94A3B8),
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          task.taskName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDone ? const Color(0xFF64748B) : const Color(0xFF0F172A),
+                                            fontWeight: FontWeight.w500,
+                                            decoration: isDone ? TextDecoration.lineThrough : null,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-            ],
-          ),
-        ],
-      ),
-          ),
-        ],
-      ),
-    );
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   // ==========================================
   // 4. TARGETS SECTION
   // ==========================================
   Widget _buildTargetsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 3.5,
-            constraints: const BoxConstraints(minHeight: 60),
-            margin: const EdgeInsets.only(right: 14),
-            decoration: BoxDecoration(color: const Color(0xFF0284C7), borderRadius: BorderRadius.circular(4)),
-          ),
-          Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InkWell(
-                onTap: () => setState(() => _currentNavIndex = 3),
-                borderRadius: BorderRadius.circular(10),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0284C7),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Iconsax.radar, color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      "Targets",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
+    return Obx(() {
+      final stats = TargetController.instance.stats.value;
+      final targets = TargetController.instance.targetsList;
+      final double progressFraction = (stats.overallAchievementPercentage / 100.0).clamp(0.0, 1.0);
+      final int pendingCount = stats.pendingLogsCount;
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.025),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 3.5,
+              constraints: const BoxConstraints(minHeight: 60),
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(color: const Color(0xFF0284C7), borderRadius: BorderRadius.circular(4)),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Alert Badge
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InkWell(
+                        onTap: () => setState(() => _currentNavIndex = 3),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Iconsax.radar, color: Colors.white, size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              "Targets",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
                         children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
+                          if (pendingCount > 0)
+                            DecoratedBox(
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.all(Radius.circular(20)),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(2),
+                                        child: Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "$pendingCount logs pending",
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFDC2626),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Padding(
-                              padding: EdgeInsets.all(2),
-                              child: Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            "2 targets pending!",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFFDC2626),
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => setState(() => _currentNavIndex = 3),
+                            child: const Row(
+                              children: [
+                                Text(
+                                  "View Details",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF0F172A),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => setState(() => _currentNavIndex = 3),
-                    child: const Row(
-                      children: [
-                        Text(
-                          "View Details",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF0F172A),
-                            fontWeight: FontWeight.w600,
-                          ),
+                  const SizedBox(height: 16),
+
+                  // Content: Left Donut, Right Metric Columns + Progress Bar
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 95,
+                        height: 95,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CustomPaint(
+                              size: const Size(95, 95),
+                              painter: _DonutProgressPainter(
+                                progress: progressFraction,
+                                progressColor: const Color(0xFF059669),
+                                backgroundColor: const Color(0xFFE2E8F0),
+                                strokeWidth: 9,
+                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "${stats.overallAchievementPercentage.toStringAsFixed(0)}%",
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const Text(
+                                  "Achieved",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 18),
+
+                      // Metrics & Bar
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Active", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text("${stats.activeTargetsCount}", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Units Sold", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text("${stats.totalUnitsSold.toInt()}", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF16A34A))),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Commission", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text("\$${stats.totalCommissionEarned.toInt()}", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFD97706))),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Progress Bar
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: progressFraction,
+                                backgroundColor: const Color(0xFFE2E8F0),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
+                                minHeight: 7,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "${targets.length} targets assigned",
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                                Text(
+                                  "${stats.overallAchievementPercentage.toStringAsFixed(1)}%",
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Content: Left Donut 60%, Right Metric Columns + Progress Bar
-          Row(
-            children: [
-              // 60% Completed Donut
-              SizedBox(
-                width: 95,
-                height: 95,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const CustomPaint(
-                      size: Size(95, 95),
-                      painter: _DonutProgressPainter(
-                        progress: 0.60,
-                        progressColor: Color(0xFF059669),
-                        backgroundColor: Color(0xFFE2E8F0),
-                        strokeWidth: 9,
-                      ),
-                    ),
-                    const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "60%",
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        Text(
-                          "Completed",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 18),
-
-              // Metrics & Bar
-              Expanded(
-                child: Column(
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Total Targets", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                            SizedBox(height: 2),
-                            Text("10", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Completed", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                            SizedBox(height: 2),
-                            Text("6", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF16A34A))),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Pending", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                            SizedBox(height: 2),
-                            Text("2", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Overdue", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                            SizedBox(height: 2),
-                            Text("2", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Progress Bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: const LinearProgressIndicator(
-                        value: 0.60,
-                        backgroundColor: Color(0xFFE2E8F0),
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
-                        minHeight: 7,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "6 of 10 targets completed",
-                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                        Text(
-                          "60%",
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-          ),
-        ],
-      ),
-    );
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   // ==========================================

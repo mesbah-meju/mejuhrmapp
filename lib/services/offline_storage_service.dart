@@ -1,5 +1,5 @@
-import 'package:get_storage/get_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get_storage/get_storage.dart';
 
 class OfflineAction {
   final String id;
@@ -55,6 +55,7 @@ class OfflineStorageService {
   static const String keyTargetsCache = 'cache_targets_data';
   static const String keyPayrollCache = 'cache_payroll_data';
   static const String keyUserProfileCache = 'cache_user_profile';
+  static const String keyLocationsCache = 'cache_tenant_locations';
 
   /// Save cached JSON data locally
   Future<void> saveCache(String key, dynamic data) async {

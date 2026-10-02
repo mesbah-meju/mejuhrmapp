@@ -1,64 +1,116 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:auth_ui_app/utils/constants/sizes.dart';
-import 'package:auth_ui_app/utils/constants/text_strings.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
+import 'package:auth_ui_app/utils/constants/image_strings.dart';
 
 class TLoginHeader extends StatelessWidget {
   const TLoginHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // HRM Brand Emblem
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF3B82F6),
-                Color(0xFF1D4ED8),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1D4ED8).withOpacity(0.3),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+        // Brand Logo and Icon Presentation
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // mejuHRM App Icon
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF059669).withValues(alpha: 0.12),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  TImages.mejuHrmIcon,
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // mejuHRM Main Logo
+              Image.asset(
+                TImages.mejuHrmLogo,
+                width: 180,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return RichText(
+                    textAlign: TextAlign.center,
+                    text: const TextSpan(
+                      children: [
+                        TextSpan(
+                          text: "meju",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF059669),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        TextSpan(
+                          text: "HRM",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "SALES • PEOPLE • GROWTH",
+                style: TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.0,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ],
           ),
-          child: const Center(
-            child: Icon(
-              Iconsax.people,
-              size: 32,
-              color: Colors.white,
-            ),
+        ),
+        const SizedBox(height: 24),
+
+        // Welcome Back Title
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                "Welcome Back",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                "Sign in to your workplace account to continue",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: TSizes.spaceBtwSections),
-        Text(
-          TTexts.loginTitle,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: TSizes.sm),
-        Text(
-          TTexts.loginSubTitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
         ),
       ],
     );
   }
 }
-

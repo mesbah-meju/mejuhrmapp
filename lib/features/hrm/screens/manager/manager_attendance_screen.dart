@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
-import 'package:auth_ui_app/services/notification_engine_service.dart';
-import 'package:auth_ui_app/services/timeline_service.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
+import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
+import 'package:auth_ui_app/features/hrm/models/manager_models.dart';
 
 class ManagerAttendanceScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -16,101 +16,17 @@ class ManagerAttendanceScreen extends StatefulWidget {
 }
 
 class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
-  String _selectedFilter = 'All'; // 'All', 'Checked In', 'Late', 'Absent'
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
+  final ManagerAttendanceController controller = ManagerAttendanceController.instance;
+  final ManagerEmployeeController empController = ManagerEmployeeController.instance;
 
-  final List<Map<String, dynamic>> _attendanceRecords = [
-    {
-      'id': 'EMP-1001',
-      'name': 'Rahul Sharma',
-      'role': 'Senior Sales Executive',
-      'avatar': 'RS',
-      'checkInTime': '09:03 AM',
-      'checkOutTime': '06:15 PM',
-      'location': 'Head Office (Geofence Verified)',
-      'workHours': '8h 42m',
-      'status': 'Checked In',
-      'statusColor': const Color(0xFF059669),
-      'statusBg': const Color(0xFFDCFCE7),
-      'isLate': false,
-    },
-    {
-      'id': 'EMP-1002',
-      'name': 'Ananya Roy',
-      'role': 'Sales Associate',
-      'avatar': 'AR',
-      'checkInTime': '09:12 AM',
-      'checkOutTime': 'Pending',
-      'location': 'Showroom B (Geofence Verified)',
-      'workHours': '7h 18m',
-      'status': 'Late Check-In',
-      'statusColor': const Color(0xFFD97706),
-      'statusBg': const Color(0xFFFEF3C7),
-      'isLate': true,
-    },
-    {
-      'id': 'EMP-1003',
-      'name': 'Tanvir Ahmed',
-      'role': 'Business Analyst',
-      'avatar': 'TA',
-      'checkInTime': '09:00 AM',
-      'checkOutTime': '06:00 PM',
-      'location': 'Head Office (Geofence Verified)',
-      'workHours': '8h 30m',
-      'status': 'Checked In',
-      'statusColor': const Color(0xFF059669),
-      'statusBg': const Color(0xFFDCFCE7),
-      'isLate': false,
-    },
-    {
-      'id': 'EMP-1004',
-      'name': 'Nusrat Jahan',
-      'role': 'HR Coordinator',
-      'avatar': 'NJ',
-      'checkInTime': '09:25 AM',
-      'checkOutTime': 'Pending',
-      'location': 'Head Office (Geofence Verified)',
-      'workHours': '6h 50m',
-      'status': 'Late Check-In',
-      'statusColor': const Color(0xFFD97706),
-      'statusBg': const Color(0xFFFEF3C7),
-      'isLate': true,
-    },
-    {
-      'id': 'EMP-1005',
-      'name': 'Mahmud Hasan',
-      'role': 'Support Engineer',
-      'avatar': 'MH',
-      'checkInTime': '08:55 AM',
-      'checkOutTime': 'Pending',
-      'location': 'Client Site A (Field Verified)',
-      'workHours': '7h 35m',
-      'status': 'Checked In',
-      'statusColor': const Color(0xFF059669),
-      'statusBg': const Color(0xFFDCFCE7),
-      'isLate': false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    controller.fetchAttendances();
+  }
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> filtered = _attendanceRecords;
-    if (_selectedFilter == 'Checked In') {
-      filtered = filtered.where((r) => r['status'] == 'Checked In').toList();
-    } else if (_selectedFilter == 'Late') {
-      filtered = filtered.where((r) => r['isLate'] == true).toList();
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((r) =>
-          r['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          r['role'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          r['id'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    }
-
-    final todayDateStr = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -122,110 +38,160 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                 onPressed: widget.onBack,
               )
             : null,
-        title: Column(
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Team Attendance Report", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            Text(todayDateStr, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+            Text("Staff Attendance", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            Text("Daily Overview & Manual Clocking", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
+            tooltip: "Refresh",
+            onPressed: () => controller.fetchAttendances(),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // KPI Overview Banner
-            _buildAttendanceKpiSummary(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showManualAttendanceSheet(context),
+        backgroundColor: const Color(0xFF2563EB),
+        icon: const Icon(Icons.more_time_rounded, color: Colors.white),
+        label: const Text("Manual Entry", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: Column(
+        children: [
+          // DATE & FILTER CONTROLS
+          _buildFilterBar(),
 
-            // "REMIND ALL MEMBERS TO ATTEND" PROMINENT BUTTON
-            _buildRemindAllBanner(),
+          // SUMMARY METRIC CHIPS
+          _buildSummaryCounters(),
 
-            // Search & Filters Bar
-            _buildFiltersAndSearch(),
+          // ATTENDANCE LIST
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+                  ),
+                );
+              }
 
-            // Attendance Record List
-            Expanded(
-              child: filtered.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        return _buildAttendanceCard(filtered[index]);
-                      },
-                    ),
-            ),
-          ],
-        ),
+              final records = controller.attendances;
+
+              if (records.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Iconsax.calendar_remove, size: 48, color: Colors.grey[400]),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "No attendance records for this date",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Tap '+ Manual Entry' to log clock-in/out for a staff member",
+                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () => controller.fetchAttendances(),
+                color: const Color(0xFF2563EB),
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                  itemCount: records.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final item = records[index];
+                    return _buildAttendanceCard(item);
+                  },
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
 
-  // ==========================================
-  // 1. ATTENDANCE KPI SUMMARY
-  // ==========================================
-  Widget _buildAttendanceKpiSummary() {
+  // =========================================================================
+  // FILTER BAR (DATE PICKER & BRANCH FILTER)
+  // =========================================================================
+  Widget _buildFilterBar() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
+          // Date Selector Button
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Present On Time", style: TextStyle(fontSize: 11, color: Color(0xFF166534))),
-                  SizedBox(height: 4),
-                  Text("3 / 5 Staff", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF14532D))),
-                  Text("60% Punctual", style: TextStyle(fontSize: 10, color: Color(0xFF16A34A))),
-                ],
+            child: InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: controller.selectedDate.value,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 30)),
+                );
+                if (picked != null) {
+                  controller.updateDate(picked);
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Iconsax.calendar_1, size: 16, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 8),
+                    Obx(() => Text(
+                          DateFormat('dd MMM yyyy').format(controller.selectedDate.value),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        )),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFDE68A)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Late Check-In", style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
-                  SizedBox(height: 4),
-                  Text("2 Staff", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF78350F))),
-                  Text("40% Delayed", style: TextStyle(fontSize: 10, color: Color(0xFFB45309))),
-                ],
-              ),
+
+          const SizedBox(width: 10),
+
+          // Status Filter Chip Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Total Active", style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF))),
-                  SizedBox(height: 4),
-                  Text("5 Members", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-                  Text("100% Checked", style: TextStyle(fontSize: 10, color: Color(0xFF2563EB))),
-                ],
-              ),
+            child: DropdownButtonHideUnderline(
+              child: Obx(() => DropdownButton<String>(
+                    value: controller.selectedStatus.value,
+                    icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF64748B)),
+                    items: const [
+                      DropdownMenuItem(value: 'all', child: Text("All Status", style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'present', child: Text("Present", style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'late', child: Text("Late", style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'absent', child: Text("Absent", style: TextStyle(fontSize: 12))),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) controller.updateStatus(val);
+                    },
+                  )),
             ),
           ),
         ],
@@ -233,211 +199,195 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
     );
   }
 
-  // ==========================================
-  // 2. PROMINENT "REMIND ALL TO ATTEND" BUTTON BANNER
-  // ==========================================
-  Widget _buildRemindAllBanner() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: Colors.white,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2563EB).withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+  // =========================================================================
+  // SUMMARY METRICS COUNTER
+  // =========================================================================
+  Widget _buildSummaryCounters() {
+    return Obx(() {
+      final records = controller.attendances;
+      final present = records.where((r) => r.status.toLowerCase() == 'present').length;
+      final late = records.where((r) => r.isLate).length;
+      final absent = records.where((r) => r.status.toLowerCase() == 'absent').length;
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: const Color(0xFFF8FAFC),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Iconsax.notification_bing, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Broadcast Attendance Nudge", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text("Send instant check-in notification to team members", style: TextStyle(fontSize: 11, color: Color(0xFF93C5FD))),
-                ],
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: _remindAllMembersToAttend,
-              icon: const Icon(Iconsax.send_2, size: 14),
-              label: const Text("Broadcast Nudge", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1D4ED8),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
+            _buildStatBadge("Present", "$present", const Color(0xFF059669), const Color(0xFFDCFCE7)),
+            const SizedBox(width: 8),
+            _buildStatBadge("Late", "$late", const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+            const SizedBox(width: 8),
+            _buildStatBadge("Absent", "$absent", const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildStatBadge(String label, String count, Color color, Color bg) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+            const SizedBox(width: 4),
+            Text(count, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
       ),
     );
   }
 
-  // ==========================================
-  // 3. SEARCH & FILTERS
-  // ==========================================
-  Widget _buildFiltersAndSearch() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Column(
-        children: [
-          TextField(
-            controller: _searchController,
-            onChanged: (val) => setState(() => _searchQuery = val),
-            decoration: InputDecoration(
-              hintText: "Search employee attendance...",
-              hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-              prefixIcon: const Icon(Iconsax.search_normal, size: 18, color: Color(0xFF64748B)),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildFilterChip('All', 'All (5)'),
-              const SizedBox(width: 8),
-              _buildFilterChip('Checked In', 'On-Time (3)'),
-              const SizedBox(width: 8),
-              _buildFilterChip('Late', 'Late (2)'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // =========================================================================
+  // ATTENDANCE CARD
+  // =========================================================================
+  Widget _buildAttendanceCard(ManagerAttendanceModel item) {
+    final bool isPresent = item.status.toLowerCase() == 'present';
+    final bool isLate = item.isLate;
 
-  Widget _buildFilterChip(String val, String label) {
-    final isSelected = _selectedFilter == val;
-    return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : const Color(0xFF475569))),
-      selected: isSelected,
-      selectedColor: const Color(0xFF2563EB),
-      backgroundColor: const Color(0xFFF1F5F9),
-      side: BorderSide.none,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onSelected: (selected) {
-        if (selected) setState(() => _selectedFilter = val);
-      },
-    );
-  }
+    final Color statusColor = isLate
+        ? const Color(0xFFD97706)
+        : isPresent
+            ? const Color(0xFF059669)
+            : const Color(0xFFDC2626);
 
-  // ==========================================
-  // 4. ATTENDANCE CARD TILE
-  // ==========================================
-  Widget _buildAttendanceCard(Map<String, dynamic> rec) {
+    final Color statusBg = isLate
+        ? const Color(0xFFFEF3C7)
+        : isPresent
+            ? const Color(0xFFDCFCE7)
+            : const Color(0xFFFEE2E2);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2))],
       ),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: Employee Name, Code & Status Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 20,
-                    backgroundColor: const Color(0xFFDBEAFE),
-                    child: Text(rec['avatar'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                    radius: 18,
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    child: Text(
+                      item.employeeName != null && item.employeeName!.isNotEmpty ? item.employeeName![0] : 'E',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(rec['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                      Text(rec['role'], style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      Text(item.employeeName ?? 'Staff', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      if (item.employeeCode != null && item.employeeCode!.isNotEmpty)
+                        Text(item.employeeCode!, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                     ],
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: rec['statusBg'] as Color,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(rec['status'], style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rec['statusColor'] as Color)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 10),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Check-In Time", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                  const SizedBox(height: 2),
-                  Text(rec['checkInTime'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Check-Out Time", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                  const SizedBox(height: 2),
-                  Text(rec['checkOutTime'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text("Duration", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                  const SizedBox(height: 2),
-                  Text(rec['workHours'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Iconsax.location, size: 12, color: Color(0xFF059669)),
-              const SizedBox(width: 4),
-              Expanded(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(6)),
                 child: Text(
-                  rec['location'],
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF059669), fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
+                  isLate ? "Late" : item.status.capitalizeFirst ?? 'Present',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
                 ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Clock In & Clock Out Times
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    const Text("Clock In", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.clockIn ?? '--:--',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                  ],
+                ),
+                Container(height: 24, width: 1, color: const Color(0xFFE2E8F0)),
+                Column(
+                  children: [
+                    const Text("Clock Out", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.clockOut ?? '--:--',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                  ],
+                ),
+                Container(height: 24, width: 1, color: const Color(0xFFE2E8F0)),
+                Column(
+                  children: [
+                    const Text("Work Hours", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.workHours ?? '--',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (item.lateReason != null && item.lateReason!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              "Reason: ${item.lateReason}",
+              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFFD97706)),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 6),
+
+          // Action buttons: Edit & Delete
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Iconsax.edit_2, size: 14, color: Color(0xFF2563EB)),
+                label: const Text("Edit Record", style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                onPressed: () => _showEditAttendanceDialog(context, item),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Iconsax.trash, size: 16, color: Color(0xFF94A3B8)),
+                tooltip: "Delete Record",
+                onPressed: () => _confirmDeleteAttendance(context, item),
               ),
             ],
           ),
@@ -446,38 +396,264 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
     );
   }
 
-  // Action: Remind All Team Members to Attend
-  void _remindAllMembersToAttend() {
-    NotificationEngineService.instance.addNotification(
-      AppNotification(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        uuid: '01K-REM-ATTEND-${DateTime.now().millisecondsSinceEpoch}',
-        category: 'attendance',
-        title: '📢 Attendance Check-In Reminder',
-        body: 'Manager reminder: Please mark your daily attendance & verify geofence location.',
-        data: {'type': 'attendance_reminder'},
-        deepLinkRoute: '/attendance',
-        createdAt: DateTime.now(),
+  // =========================================================================
+  // MANUAL CLOCK IN/OUT MODAL
+  // =========================================================================
+  void _showManualAttendanceSheet(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final clockInCtrl = TextEditingController(text: "09:00:00");
+    final clockOutCtrl = TextEditingController(text: "18:00:00");
+    final notesCtrl = TextEditingController();
+
+    int? selectedEmpId = empController.activeEmployees.isNotEmpty ? empController.activeEmployees.first.id : null;
+    String status = "present";
+    DateTime date = controller.selectedDate.value;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Log Manual Attendance", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Divider(),
+              Form(
+                key: formKey,
+                child: Column(
+                  children: [
+                    // Employee Dropdown
+                    Obx(() => DropdownButtonFormField<int>(
+                          value: selectedEmpId,
+                          decoration: const InputDecoration(labelText: "Select Staff Member *", prefixIcon: Icon(Iconsax.user)),
+                          items: empController.activeEmployees
+                              .map((e) => DropdownMenuItem(value: e.id, child: Text("${e.name} (${e.employeeId})")))
+                              .toList(),
+                          onChanged: (val) => setSheetState(() => selectedEmpId = val),
+                          validator: (v) => v == null ? "Please select staff" : null,
+                        )),
+                    const SizedBox(height: 12),
+
+                    // Date & Status
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: status,
+                            decoration: const InputDecoration(labelText: "Status *"),
+                            items: const [
+                              DropdownMenuItem(value: 'present', child: Text("Present")),
+                              DropdownMenuItem(value: 'late', child: Text("Late")),
+                              DropdownMenuItem(value: 'absent', child: Text("Absent")),
+                              DropdownMenuItem(value: 'half_day', child: Text("Half Day")),
+                            ],
+                            onChanged: (val) => setSheetState(() => status = val ?? 'present'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Clock In & Clock Out
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: clockInCtrl,
+                            decoration: const InputDecoration(labelText: "Clock In (HH:MM:SS)"),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: clockOutCtrl,
+                            decoration: const InputDecoration(labelText: "Clock Out (HH:MM:SS)"),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: notesCtrl,
+                      decoration: const InputDecoration(labelText: "Notes / Late Reason", prefixIcon: Icon(Iconsax.note)),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          if (formKey.currentState!.validate()) {
+                            final body = {
+                              'employee_id': selectedEmpId,
+                              'date': DateFormat('yyyy-MM-dd').format(date),
+                              'clock_in': clockInCtrl.text.trim(),
+                              'clock_out': clockOutCtrl.text.trim(),
+                              'status': status,
+                              if (notesCtrl.text.isNotEmpty) 'notes': notesCtrl.text.trim(),
+                            };
+
+                            final ok = await controller.createAttendance(body);
+                            if (ok && ctx.mounted) Navigator.pop(ctx);
+                          }
+                        },
+                        child: const Text("Save Attendance Record", style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
-
-    TimelineService.instance.logEvent(
-      ActivityEvent(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        uuid: '01K-EVT-REMIND-${DateTime.now().millisecondsSinceEpoch}',
-        eventType: 'attendance.clock_in',
-        title: 'Attendance Reminder Sent to Team',
-        description: 'Manager dispatched check-in nudge notification to all 5 team members.',
-        metadata: {'sent_to_count': 5},
-        eventAt: DateTime.now(),
-        status: 'completed',
-      ),
-    );
-
-    THelperFunctions.showSnackBar("📢 Sent attendance check-in reminder push notification to all team members!");
   }
 
-  Widget _buildEmptyState() {
-    return const Center(child: Text("No attendance records found.", style: TextStyle(color: Color(0xFF64748B))));
+  // =========================================================================
+  // EDIT ATTENDANCE DIALOG
+  // =========================================================================
+  void _showEditAttendanceDialog(BuildContext context, ManagerAttendanceModel item) {
+    final formKey = GlobalKey<FormState>();
+    final clockInCtrl = TextEditingController(text: item.clockIn ?? '');
+    final clockOutCtrl = TextEditingController(text: item.clockOut ?? '');
+    final notesCtrl = TextEditingController(text: item.notes ?? '');
+    final reasonCtrl = TextEditingController(text: item.lateReason ?? '');
+    String status = item.status.toLowerCase();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Edit Attendance (${item.employeeName})", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: "Status"),
+                    items: const [
+                      DropdownMenuItem(value: 'present', child: Text("Present")),
+                      DropdownMenuItem(value: 'late', child: Text("Late")),
+                      DropdownMenuItem(value: 'absent', child: Text("Absent")),
+                    ],
+                    onChanged: (val) => setDialogState(() => status = val ?? 'present'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: clockInCtrl,
+                    decoration: const InputDecoration(labelText: "Clock In (HH:MM:SS)"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: clockOutCtrl,
+                    decoration: const InputDecoration(labelText: "Clock Out (HH:MM:SS)"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: reasonCtrl,
+                    decoration: const InputDecoration(labelText: "Late Reason"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(labelText: "Manager Notes"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel", style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final body = {
+                    'clock_in': clockInCtrl.text.trim(),
+                    'clock_out': clockOutCtrl.text.trim(),
+                    'status': status,
+                    'late_reason': reasonCtrl.text.trim(),
+                    'notes': notesCtrl.text.trim(),
+                  };
+
+                  final ok = await controller.updateAttendance(item.id, body);
+                  if (ok && ctx.mounted) Navigator.pop(ctx);
+                }
+              },
+              child: const Text("Update"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
+  // DELETE ATTENDANCE CONFIRMATION
+  // =========================================================================
+  void _confirmDeleteAttendance(BuildContext context, ManagerAttendanceModel item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Delete Attendance Record?", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(
+          "Are you sure you want to delete the attendance record for ${item.employeeName} on ${item.date}?",
+          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await controller.deleteAttendance(item.id);
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
   }
 }

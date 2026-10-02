@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
+import 'package:auth_ui_app/services/hrm_api_service.dart';
 import 'package:auth_ui_app/services/offline_storage_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -24,8 +25,8 @@ class SyncController extends GetxController {
   void onInit() {
     super.onInit();
     refreshPendingCount();
-    // Start periodic connectivity check & sync timer
-    _periodicSyncTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Start periodic sync timer
+    _periodicSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       if (isOnline.value && pendingCount.value > 0 && !isSyncing.value) {
         syncPendingActions();
       }
@@ -47,7 +48,7 @@ class SyncController extends GetxController {
   void toggleOfflineMode() {
     isOnline.value = !isOnline.value;
     if (isOnline.value) {
-      THelperFunctions.showSnackBar("Network restored. Syncing offline data...");
+      THelperFunctions.showSnackBar("Network restored. Syncing offline queue...");
       syncPendingActions();
     } else {
       THelperFunctions.showSnackBar("App switched to Offline Mode. Actions will be queued locally.");
@@ -76,7 +77,7 @@ class SyncController extends GetxController {
     }
   }
 
-  /// Sync all pending actions with backend
+  /// Sync all pending actions with backend API endpoints
   Future<void> syncPendingActions() async {
     if (!isOnline.value) {
       THelperFunctions.showSnackBar("Cannot sync while offline.");
@@ -96,15 +97,51 @@ class SyncController extends GetxController {
     for (final action in pending) {
       try {
         if (kDebugMode) {
-          print("Syncing action ${action.id} of type ${action.actionType}...");
+          print("Syncing action ${action.id} [${action.actionType}] with payload ${action.payload}...");
         }
 
-        // Simulate network delay for API request
-        await Future.delayed(const Duration(milliseconds: 600));
+        bool syncedSuccessfully = false;
 
-        // Mark action as synced in local storage
-        await OfflineStorageService.instance.markActionSynced(action.id);
-        successCount++;
+        switch (action.actionType) {
+          case 'attendance_checkin':
+            final lat = (action.payload['latitude'] as num?)?.toDouble() ?? 23.7808875;
+            final lng = (action.payload['longitude'] as num?)?.toDouble() ?? 90.4192723;
+            final acc = (action.payload['accuracy'] as num?)?.toDouble();
+            final res = await HrmApiService.instance.clockIn(latitude: lat, longitude: lng, accuracy: acc);
+            syncedSuccessfully = res.isSuccess;
+            break;
+
+          case 'attendance_checkout':
+            final lat = (action.payload['latitude'] as num?)?.toDouble() ?? 23.7808875;
+            final lng = (action.payload['longitude'] as num?)?.toDouble() ?? 90.4192723;
+            final acc = (action.payload['accuracy'] as num?)?.toDouble();
+            final res = await HrmApiService.instance.clockOut(latitude: lat, longitude: lng, accuracy: acc);
+            syncedSuccessfully = res.isSuccess;
+            break;
+
+          case 'task_toggle':
+          case 'task_complete':
+            final taskId = action.payload['branch_task_id'] is int
+                ? action.payload['branch_task_id']
+                : int.tryParse(action.payload['branch_task_id']?.toString() ?? '0') ?? 0;
+            final notes = action.payload['notes']?.toString();
+            final res = await HrmApiService.instance.toggleTaskComplete(branchTaskId: taskId, notes: notes);
+            syncedSuccessfully = res.isSuccess;
+            break;
+
+          default:
+            // Generic or fallback action
+            syncedSuccessfully = true;
+            break;
+        }
+
+        if (syncedSuccessfully) {
+          await OfflineStorageService.instance.markActionSynced(action.id);
+          successCount++;
+        } else {
+          failCount++;
+          await OfflineStorageService.instance.markActionFailed(action.id, "Server returned error or invalid status");
+        }
       } catch (e) {
         failCount++;
         await OfflineStorageService.instance.markActionFailed(action.id, e.toString());

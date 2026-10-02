@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
-import 'package:auth_ui_app/features/hrm/screens/dashboard/dashboard.dart';
 import 'package:auth_ui_app/features/hrm/screens/manager/manager_dashboard.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_dashboard_screen.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/utils/constants/api_constants.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
@@ -31,6 +31,13 @@ class LoginController extends GetxController {
     _restoreSelectedMode();
   }
 
+  @override
+  void onClose() {
+    email.dispose();
+    password.dispose();
+    super.onClose();
+  }
+
   void _restoreRememberedEmail() {
     final savedEmail = _storage.read<String>(ApiConstants.storageRememberEmailKey);
     if (savedEmail != null && savedEmail.isNotEmpty) {
@@ -46,19 +53,13 @@ class LoginController extends GetxController {
     }
   }
 
-  /// Toggle login mode
+  /// Toggle login mode (Staff vs Manager)
   void setMode(String mode) {
     selectedMode.value = mode;
     _storage.write(ApiConstants.storageUserModeKey, mode);
   }
 
-  /// Quick fill demo test credentials
-  void fillDemoCredentials() {
-    email.text = 'admin@gmail.com';
-    password.text = '1234';
-  }
-
-  /// Sign In with Laravel HRM Backend (hrm.mesbahuddin.info)
+  /// Sign In with Laravel HRM Backend
   Future<void> emailAndPasswordSignIn() async {
     if (!loginFormKey.currentState!.validate()) return;
 
@@ -71,12 +72,14 @@ class LoginController extends GetxController {
       final result = await AuthService.instance.login(
         email: emailInput,
         password: passwordInput,
+        loginType: selectedMode.value,
+        deviceName: 'Flutter-App',
       );
 
       isLoading.value = false;
 
       if (result['success'] == true) {
-        // Save or clear remembered email & mode
+        // Save or clear remembered email
         if (rememberMe.value) {
           await _storage.write(ApiConstants.storageRememberEmailKey, emailInput);
         } else {
@@ -85,11 +88,11 @@ class LoginController extends GetxController {
         await _storage.write(ApiConstants.storageUserModeKey, selectedMode.value);
 
         THelperFunctions.showSnackBar(
-          result['message'] ?? 'Successfully logged in to Metro HRM (${selectedMode.value.toUpperCase()} Mode)!',
+          result['message'] ?? 'Successfully logged in.',
         );
 
-        // Server permissions remain authoritative. Route according to selected mode
-        if (selectedMode.value == 'manager') {
+        // Server permissions determine authorized experience
+        if (selectedMode.value == 'manager' || AuthService.instance.isManager()) {
           Get.offAll(
             () => const ManagerDashboardScreen(),
             transition: Transition.fadeIn,
@@ -101,8 +104,8 @@ class LoginController extends GetxController {
           );
         }
       } else {
-        // Show error message from Laravel API
-        final errorMessage = result['message'] ?? 'Authentication failed. Please check credentials.';
+        // Show server message / 403 Forbidden / 401 Unauthorized / validation error
+        final errorMessage = result['message'] ?? 'Authentication failed. Please check your email and password.';
         Get.snackbar(
           'Login Failed',
           errorMessage,
@@ -117,7 +120,7 @@ class LoginController extends GetxController {
       isLoading.value = false;
       Get.snackbar(
         'Connection Error',
-        'Unable to connect to https://hrm.mesbahuddin.info. $e',
+        'Unable to connect to the server. Please check your network connection.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
         colorText: Colors.white,
@@ -127,10 +130,10 @@ class LoginController extends GetxController {
   }
 
   void googleSignIn() {
-    THelperFunctions.showSnackBar('Google Single Sign-On (SSO) for HRM is configured via corporate portal.');
+    THelperFunctions.showSnackBar('Single Sign-On (SSO) is managed by your organization.');
   }
 
   void facebookSignIn() {
-    THelperFunctions.showSnackBar('Corporate SSO via OAuth.');
+    THelperFunctions.showSnackBar('Single Sign-On (SSO) is managed by your organization.');
   }
 }

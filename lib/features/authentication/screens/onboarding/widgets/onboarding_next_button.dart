@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
 
-import 'package:auth_ui_app/utils/constants/colors.dart';
-import 'package:auth_ui_app/utils/constants/sizes.dart';
-import 'package:auth_ui_app/utils/device/device_utility.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 import 'package:auth_ui_app/features/authentication/controllers/onboarding_controller.dart';
 
 class TOnBoardingNextButton extends StatelessWidget {
@@ -12,17 +7,37 @@ class TOnBoardingNextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
     return Positioned(
-      right: TSizes.defaultSpace,
-      bottom: TDeviceUtils.getBottomNavigationBarHeight(),
-      child: ElevatedButton(
-        onPressed: () => OnBoardingController.instance.nextPage(),
-        style: ElevatedButton.styleFrom(
-          shape: const CircleBorder(),
-          backgroundColor: dark ? TColors.primary : Colors.black,
+      right: 24,
+      bottom: 24,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => OnBoardingController.instance.nextPage(),
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFF059669),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF059669).withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
         ),
-        child: const Icon(Iconsax.arrow_right_3),
       ),
     );
   }

@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:http/http.dart' as http;
 
+import 'package:auth_ui_app/features/hrm/models/auth_response_model.dart';
+import 'package:auth_ui_app/services/hrm_api_service.dart';
+import 'package:auth_ui_app/services/offline_storage_service.dart';
 import 'package:auth_ui_app/utils/constants/api_constants.dart';
 
 class AuthService {
@@ -11,119 +12,51 @@ class AuthService {
 
   final GetStorage _storage = GetStorage();
 
-  /// Attempt login to Laravel HRM API
+  /// Attempt production login to Laravel HRM API with Dual-Login Support (Manager / Staff)
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
+    String loginType = 'staff',
+    String? deviceName = 'Flutter-Mobile',
   }) async {
-    // Demo login for testing (admin@gmail.com / 1234)
-    if (email.trim().toLowerCase() == 'admin@gmail.com' && password == '1234') {
-      final demoUser = {
-        'id': 1,
-        'name': 'System Administrator',
-        'email': 'admin@gmail.com',
-        'role': 'HR Admin & Manager',
-        'designation': 'Enterprise Administrator',
-        'is_demo': true,
-      };
-      const demoToken = 'demo_laravel_hrm_token_admin_1234';
-      await _saveSession(token: demoToken, user: demoUser);
-      return {
-        'success': true,
-        'message': 'Logged in as Administrator (Demo Mode)',
-        'token': demoToken,
-        'user': demoUser,
-      };
-    }
-
     try {
-      final headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
-      final body = jsonEncode({
-        'email': email,
-        'password': password,
-      });
-
       if (kDebugMode) {
-        print("Authenticating with Laravel HRM at: ${ApiConstants.loginEndpoint}");
+        print("Authenticating with Laravel HRM API as [$loginType] -> $email");
       }
 
-      final response = await http
-          .post(
-            Uri.parse(ApiConstants.loginEndpoint),
-            headers: headers,
-            body: body,
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await HrmApiService.instance.login(
+        email: email,
+        password: password,
+        loginType: loginType,
+        deviceName: deviceName,
+      );
 
-      if (kDebugMode) {
-        print("Status Code: ${response.statusCode}");
-        print("Response Body: ${response.body}");
-      }
+      if (response.isSuccess && response.data != null) {
+        final authData = response.data!;
 
-      final dynamic responseData = jsonDecode(response.body);
-
-      // Handle 200 OK / 201 Created
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        String token = '';
-        Map<String, dynamic> user = {};
-
-        if (responseData is Map<String, dynamic>) {
-          // Token discovery across standard Laravel formats
-          if (responseData['token'] != null) {
-            token = responseData['token'].toString();
-          } else if (responseData['access_token'] != null) {
-            token = responseData['access_token'].toString();
-          } else if (responseData['data'] is Map && responseData['data']['token'] != null) {
-            token = responseData['data']['token'].toString();
-          }
-
-          // User info discovery
-          if (responseData['user'] is Map<String, dynamic>) {
-            user = responseData['user'];
-          } else if (responseData['data'] is Map && responseData['data']['user'] is Map<String, dynamic>) {
-            user = responseData['data']['user'];
-          } else if (responseData['data'] is Map<String, dynamic>) {
-            user = responseData['data'];
-          } else {
-            user = {
-              'name': email.split('@').first,
-              'email': email,
-              'role': 'Employee',
-            };
-          }
-        }
-
-        // Save session locally
-        await _saveSession(token: token, user: user);
+        await _saveSession(
+          token: authData.token,
+          user: authData.user.toJson(),
+          employee: authData.employee?.toJson(),
+          tenantLocations: authData.tenantLocations.map((l) => l.toJson()).toList(),
+          loginType: authData.loginType,
+        );
 
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Login successful',
-          'token': token,
-          'user': user,
+          'message': response.message,
+          'token': authData.token,
+          'user': authData.user.toJson(),
+          'employee': authData.employee?.toJson(),
+          'tenant_locations': authData.tenantLocations.map((l) => l.toJson()).toList(),
+          'login_type': authData.loginType,
         };
-      }
-
-      // Handle 401 Unauthorized / 422 Validation Error
-      String errorMessage = 'Invalid credentials. Please verify your email and password.';
-      if (responseData is Map<String, dynamic>) {
-        if (responseData['message'] != null) {
-          errorMessage = responseData['message'].toString();
-        } else if (responseData['error'] != null) {
-          errorMessage = responseData['error'].toString();
-        } else if (responseData['errors'] is Map) {
-          final errors = responseData['errors'] as Map;
-          errorMessage = errors.values.map((e) => (e is List) ? e.join(' ') : e.toString()).join('\n');
-        }
       }
 
       return {
         'success': false,
-        'message': errorMessage,
+        'message': response.message,
+        'errors': response.errors,
         'statusCode': response.statusCode,
       };
     } catch (e) {
@@ -131,28 +64,47 @@ class AuthService {
         print("Auth error: $e");
       }
 
-      // Check if it's a network/DNS error or server unavailable
       return {
         'success': false,
-        'message': 'Connection error to ${ApiConstants.baseUrl}. Please check your network or server availability.',
+        'message': 'Unable to connect to the authentication server. Please check your network connection.',
         'error': e.toString(),
       };
     }
   }
 
-  /// Save Auth Session to GetStorage
+  /// Save Auth Session to GetStorage & OfflineStorage Cache
   Future<void> _saveSession({
     required String token,
     required Map<String, dynamic> user,
+    Map<String, dynamic>? employee,
+    List<dynamic>? tenantLocations,
+    required String loginType,
   }) async {
     await _storage.write(ApiConstants.storageTokenKey, token);
     await _storage.write(ApiConstants.storageUserKey, user);
+    if (employee != null) {
+      await _storage.write(ApiConstants.storageEmployeeKey, employee);
+    }
+    if (tenantLocations != null) {
+      await _storage.write(ApiConstants.storageTenantLocationsKey, tenantLocations);
+    }
+    await _storage.write(ApiConstants.storageUserModeKey, loginType);
     await _storage.write(ApiConstants.storageIsLoggedInKey, true);
+
+    // Update offline cache for quick offline cold starts
+    await OfflineStorageService.instance.saveCache(OfflineStorageService.keyUserProfileCache, {
+      'user': user,
+      'employee': employee,
+      'tenant_locations': tenantLocations,
+      'login_type': loginType,
+    });
   }
 
   /// Check if user is already logged in
   bool isLoggedIn() {
-    return _storage.read<bool>(ApiConstants.storageIsLoggedInKey) ?? false;
+    final token = getToken();
+    final isLogged = _storage.read<bool>(ApiConstants.storageIsLoggedInKey) ?? false;
+    return isLogged && token != null && token.isNotEmpty;
   }
 
   /// Get active bearer token
@@ -160,7 +112,7 @@ class AuthService {
     return _storage.read<String>(ApiConstants.storageTokenKey);
   }
 
-  /// Get current user data
+  /// Get current user data as Map
   Map<String, dynamic>? getUser() {
     final data = _storage.read(ApiConstants.storageUserKey);
     if (data is Map<String, dynamic>) return data;
@@ -168,23 +120,87 @@ class AuthService {
     return null;
   }
 
+  /// Get typed UserModel
+  UserModel? getCurrentUser() {
+    final rawUser = getUser();
+    if (rawUser != null) {
+      return UserModel.fromJson(rawUser);
+    }
+    return null;
+  }
+
+  /// Get Employee data as Map
+  Map<String, dynamic>? getEmployeeMap() {
+    final data = _storage.read(ApiConstants.storageEmployeeKey);
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
+  }
+
+  /// Get typed EmployeeModel
+  EmployeeModel? getEmployee() {
+    final rawEmp = getEmployeeMap();
+    if (rawEmp != null) {
+      return EmployeeModel.fromJson(rawEmp);
+    }
+    return null;
+  }
+
+  /// Get cached Tenant Locations
+  List<TenantLocationModel> getTenantLocations() {
+    final rawList = _storage.read<List>(ApiConstants.storageTenantLocationsKey);
+    if (rawList != null) {
+      return rawList
+          .map((e) => TenantLocationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Check user roles
+  bool isManager() {
+    final mode = _storage.read<String>(ApiConstants.storageUserModeKey);
+    if (mode == 'manager') return true;
+    final user = getCurrentUser();
+    if (user != null) {
+      return user.roles.any((r) => ['admin', 'hr', 'manager', 'superadmin'].contains(r.toLowerCase())) ||
+          ['admin', 'hr', 'manager'].contains(user.type.toLowerCase());
+    }
+    return false;
+  }
+
+  /// Refresh user profile from server
+  Future<bool> refreshUserProfile() async {
+    try {
+      final response = await HrmApiService.instance.getUserProfile();
+      if (response.isSuccess && response.data != null) {
+        final data = response.data!;
+        await _storage.write(ApiConstants.storageUserKey, data.user.toJson());
+        if (data.employee != null) {
+          await _storage.write(ApiConstants.storageEmployeeKey, data.employee!.toJson());
+        }
+        if (data.tenantLocations.isNotEmpty) {
+          await _storage.write(
+            ApiConstants.storageTenantLocationsKey,
+            data.tenantLocations.map((e) => e.toJson()).toList(),
+          );
+        }
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   /// Logout and clear credentials
   Future<void> logout() async {
     try {
-      final token = getToken();
-      if (token != null && token.isNotEmpty) {
-        await http.post(
-          Uri.parse(ApiConstants.logoutEndpoint),
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ).timeout(const Duration(seconds: 5));
-      }
+      await HrmApiService.instance.logout();
     } catch (_) {}
 
     await _storage.remove(ApiConstants.storageTokenKey);
     await _storage.remove(ApiConstants.storageUserKey);
+    await _storage.remove(ApiConstants.storageEmployeeKey);
+    await _storage.remove(ApiConstants.storageTenantLocationsKey);
     await _storage.write(ApiConstants.storageIsLoggedInKey, false);
   }
 }

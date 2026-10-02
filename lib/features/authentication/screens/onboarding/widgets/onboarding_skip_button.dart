@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:auth_ui_app/utils/constants/sizes.dart';
+
 import 'package:auth_ui_app/features/authentication/controllers/onboarding_controller.dart';
 
 class TOnBoardingSkipButton extends StatelessWidget {
@@ -7,37 +7,21 @@ class TOnBoardingSkipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-
     return Positioned(
-      top: TSizes.defaultSpace,
-      right: TSizes.defaultSpace,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => OnBoardingController.instance.skipPage(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Text(
-              'Skip',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: dark ? Colors.white : Colors.black87,
-              ),
-            ),
+      top: 12,
+      right: 20,
+      child: TextButton(
+        onPressed: () => OnBoardingController.instance.skipPage(),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF64748B),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        ),
+        child: const Text(
+          'Skip',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13.5,
+            color: Color(0xFF64748B),
           ),
         ),
       ),

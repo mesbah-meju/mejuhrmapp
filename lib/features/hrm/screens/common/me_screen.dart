@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:auth_ui_app/features/authentication/screens/login/login.dart';
-import 'package:auth_ui_app/features/hrm/screens/approvals/approvals_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/me/devices_sessions_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/notifications/notifications_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/sync_center/sync_center_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/timeline/timeline_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/devices_sessions_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/notifications_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/sync_center_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_approvals_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_timeline_screen.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -47,7 +47,7 @@ class _MeScreenState extends State<MeScreen> {
   String _joiningDate = "15 Jan 2024";
   String _reportingManager = "Mustafizur Rahman (VP Sales)";
   String _phone = "+880 1712-345678";
-  String _email = "rahul.sharma@metromobile.com";
+  String _email = "rahul.sharma@mejumobile.com";
   String _address = "House 42, Road 11, Banani, Dhaka-1213";
   String _dateOfBirth = "14 Aug 1996";
   String _gender = "Male";
@@ -58,12 +58,20 @@ class _MeScreenState extends State<MeScreen> {
   @override
   void initState() {
     super.initState();
-    final user = AuthService.instance.getUser();
-    if (user != null && user['name'] != null && user['name'].toString().isNotEmpty) {
-      _employeeName = user['name'];
+    final user = AuthService.instance.getCurrentUser();
+    final employee = AuthService.instance.getEmployee();
+
+    if (user != null) {
+      if (user.name.isNotEmpty) _employeeName = user.name;
+      if (user.email.isNotEmpty) _email = user.email;
+      if (user.mobileNo != null && user.mobileNo!.isNotEmpty) _phone = user.mobileNo!;
     }
-    if (user != null && user['email'] != null && user['email'].toString().isNotEmpty) {
-      _email = user['email'];
+
+    if (employee != null) {
+      if (employee.employeeId.isNotEmpty) _employeeId = employee.employeeId;
+      if (employee.branch?.name != null && employee.branch!.name.isNotEmpty) _branch = employee.branch!.name;
+      if (employee.department?.name != null && employee.department!.name.isNotEmpty) _department = employee.department!.name;
+      if (employee.designation?.name != null && employee.designation!.name.isNotEmpty) _designation = employee.designation!.name;
     }
   }
 
@@ -480,7 +488,7 @@ class _MeScreenState extends State<MeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Provided by", style: TextStyle(fontSize: 11, color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold)),
-                        Text("Metro HRM Systems Ltd.", style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E3A8A))),
+                        Text("meju HRM Systems Ltd.", style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E3A8A))),
                       ],
                     ),
                     SizedBox(height: 6),
@@ -488,7 +496,7 @@ class _MeScreenState extends State<MeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Support Email", style: TextStyle(fontSize: 11, color: Color(0xFF1E3A8A))),
-                        Text("support@metromobile.com", style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+                        Text("support@mejumobile.com", style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
                       ],
                     ),
                     SizedBox(height: 6),
@@ -512,7 +520,7 @@ class _MeScreenState extends State<MeScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                "© 2026 Metro HRM Systems. All rights reserved.",
+                "© 2026 mejuHRM Systems. All rights reserved.",
                 style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
               ),
               const SizedBox(height: 10),
@@ -798,7 +806,7 @@ class _MeScreenState extends State<MeScreen> {
                     iconColor: const Color(0xFF2563EB),
                     title: "Help & Support",
                     subtitle: "HR helpdesk & user guide",
-                    onTap: () => THelperFunctions.showSnackBar("Support Desk: support@metromobile.com"),
+                    onTap: () => THelperFunctions.showSnackBar("Support Desk: support@mejumobile.com"),
                   ),
                   _buildSectionItem(
                     icon: Icons.bug_report_outlined,
@@ -839,7 +847,7 @@ class _MeScreenState extends State<MeScreen> {
                     icon: Icons.info_outline_rounded,
                     iconColor: const Color(0xFF2563EB),
                     title: "About",
-                    subtitle: "Version 1.0.0 • Metro HRM",
+                    subtitle: "Version 1.0.0 • meju HRM",
                     isLast: true,
                     onTap: _showAboutDialog,
                   ),
@@ -877,7 +885,7 @@ class _MeScreenState extends State<MeScreen> {
               // Version Footer
               const Center(
                 child: Text(
-                  "Metro HRM Mobile • Version 1.0.0 (Build 100)",
+                  "meju HRM Mobile • Version 1.0.0 (Build 100)",
                   style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                 ),
               ),

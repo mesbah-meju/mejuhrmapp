@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
-import 'package:auth_ui_app/services/payroll_service.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
+import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
+import 'package:auth_ui_app/features/hrm/models/manager_models.dart';
+import 'package:auth_ui_app/utils/constants/colors.dart';
 
 class ManagerTeamScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -14,127 +16,29 @@ class ManagerTeamScreen extends StatefulWidget {
   State<ManagerTeamScreen> createState() => _ManagerTeamScreenState();
 }
 
-class _ManagerTeamScreenState extends State<ManagerTeamScreen> {
-  final PayrollService _payrollService = PayrollService.instance;
-  String _selectedDepartment = 'All';
-  String _searchQuery = '';
+class _ManagerTeamScreenState extends State<ManagerTeamScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final ManagerEmployeeController controller = ManagerEmployeeController.instance;
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _teamReports = [
-    {
-      'id': 'EMP-1001',
-      'name': 'Rahul Sharma',
-      'role': 'Senior Sales Executive',
-      'department': 'Sales & Business',
-      'avatar': 'RS',
-      'salesTarget': 150000.0,
-      'salesAchieved': 168000.0,
-      'salesPercentage': 112,
-      'attendanceRate': 100,
-      'tasksCompleted': '12/12',
-      'rating': 'Exceeds Expectations (4.9/5.0)',
-      'ratingColor': const Color(0xFF059669),
-      'status': 'Checked In (09:03 AM)',
-      'statusColor': const Color(0xFF059669),
-      'recentSales': [
-        {'client': 'ABC Corporation', 'amount': 45000.0, 'time': '10:30 AM', 'ref': 'INV-9021', 'status': 'Approved'},
-        {'client': 'Global Systems Ltd', 'amount': 78000.0, 'time': '01:15 PM', 'ref': 'INV-9045', 'status': 'Approved'},
-        {'client': 'Apex Traders', 'amount': 45000.0, 'time': '04:20 PM', 'ref': 'INV-9088', 'status': 'Approved'},
-      ],
-    },
-    {
-      'id': 'EMP-1002',
-      'name': 'Ananya Roy',
-      'role': 'Sales Associate',
-      'department': 'Sales & Operations',
-      'avatar': 'AR',
-      'salesTarget': 100000.0,
-      'salesAchieved': 94000.0,
-      'salesPercentage': 94,
-      'attendanceRate': 91,
-      'tasksCompleted': '9/10',
-      'rating': 'Meets Expectations (4.2/5.0)',
-      'ratingColor': const Color(0xFF2563EB),
-      'status': 'Checked In (09:12 AM)',
-      'statusColor': const Color(0xFF059669),
-      'recentSales': [
-        {'client': 'Metro Retail Outlet', 'amount': 32000.0, 'time': '11:00 AM', 'ref': 'INV-8812', 'status': 'Approved'},
-        {'client': 'City Supermart', 'amount': 62000.0, 'time': '02:40 PM', 'ref': 'INV-8834', 'status': 'Approved'},
-      ],
-    },
-    {
-      'id': 'EMP-1003',
-      'name': 'Tanvir Ahmed',
-      'role': 'Business Analyst',
-      'department': 'Strategy & Analytics',
-      'avatar': 'TA',
-      'salesTarget': 80000.0,
-      'salesAchieved': 80000.0,
-      'salesPercentage': 100,
-      'attendanceRate': 100,
-      'tasksCompleted': '15/15',
-      'rating': 'Top Performer (5.0/5.0)',
-      'ratingColor': const Color(0xFF7C3AED),
-      'status': 'Checked In (09:00 AM)',
-      'statusColor': const Color(0xFF059669),
-      'recentSales': [
-        {'client': 'Horizon Tech', 'amount': 80000.0, 'time': '09:45 AM', 'ref': 'INV-7721', 'status': 'Approved'},
-      ],
-    },
-    {
-      'id': 'EMP-1004',
-      'name': 'Nusrat Jahan',
-      'role': 'HR Coordinator',
-      'department': 'Human Resources',
-      'avatar': 'NJ',
-      'salesTarget': 50000.0,
-      'salesAchieved': 48000.0,
-      'salesPercentage': 96,
-      'attendanceRate': 95,
-      'tasksCompleted': '8/9',
-      'rating': 'Good Performance (4.4/5.0)',
-      'ratingColor': const Color(0xFF0284C7),
-      'status': 'On Field Visit',
-      'statusColor': const Color(0xFFD97706),
-      'recentSales': [
-        {'client': 'Prime Talent Services', 'amount': 48000.0, 'time': '01:30 PM', 'ref': 'INV-6612', 'status': 'Approved'},
-      ],
-    },
-    {
-      'id': 'EMP-1005',
-      'name': 'Mahmud Hasan',
-      'role': 'Support Engineer',
-      'avatar': 'MH',
-      'salesTarget': 60000.0,
-      'salesAchieved': 65000.0,
-      'salesPercentage': 108,
-      'attendanceRate': 100,
-      'tasksCompleted': '18/18',
-      'rating': 'Top Performer (4.8/5.0)',
-      'ratingColor': const Color(0xFF059669),
-      'status': 'Checked In (08:55 AM)',
-      'statusColor': const Color(0xFF059669),
-      'recentSales': [
-        {'client': 'Core IT Solutions', 'amount': 65000.0, 'time': '10:15 AM', 'ref': 'INV-5520', 'status': 'Approved'},
-      ],
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      controller.selectedTab.value = _tabController.index;
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: 'BDT ', decimalDigits: 0);
-
-    List<Map<String, dynamic>> filteredList = _teamReports;
-    if (_selectedDepartment != 'All') {
-      filteredList = filteredList.where((e) => e['department'] == _selectedDepartment).toList();
-    }
-    if (_searchQuery.isNotEmpty) {
-      filteredList = filteredList.where((e) =>
-          e['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          e['role'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          e['id'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    }
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -149,81 +53,75 @@ class _ManagerTeamScreenState extends State<ManagerTeamScreen> {
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Team & Direct Reports", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            Text("Employee Target Performance & Analytics Reports", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // KPI Summary Header Cards
-            _buildTeamSummaryKpi(currencyFormat),
-
-            // Search & Department Filter Chips
-            _buildSearchAndFilters(),
-
-            // List of Employee Reports
-            Expanded(
-              child: filteredList.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: filteredList.length,
-                      itemBuilder: (context, index) {
-                        return _buildEmployeeCard(filteredList[index], currencyFormat);
-                      },
-                    ),
+            Text(
+              "Employee Directory",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            ),
+            Text(
+              "Staff Management, Roles & Security",
+              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTeamSummaryKpi(NumberFormat format) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Total Direct Reports", style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF))),
-                  SizedBox(height: 4),
-                  Text("5 Employees", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-                  Text("100% Active Staff", style: TextStyle(fontSize: 10, color: Color(0xFF2563EB))),
-                ],
-              ),
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
+            tooltip: "Refresh",
+            onPressed: () {
+              controller.fetchOptions();
+              controller.fetchEmployees();
+            },
           ),
-          const SizedBox(width: 10),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: const Color(0xFF2563EB),
+          unselectedLabelColor: const Color(0xFF64748B),
+          indicatorColor: const Color(0xFF2563EB),
+          indicatorWeight: 3,
+          tabs: [
+            Obx(() => Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Iconsax.user_tick, size: 16),
+                      const SizedBox(width: 8),
+                      Text("Active Staff (${controller.activeEmployees.length})"),
+                    ],
+                  ),
+                )),
+            Obx(() => Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Iconsax.user_remove, size: 16),
+                      const SizedBox(width: 8),
+                      Text("Disabled Staff (${controller.disabledEmployees.length})"),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddEmployeeDialog(context),
+        backgroundColor: const Color(0xFF2563EB),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text("Add Staff", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: Column(
+        children: [
+          // SEARCH & FILTER BAR
+          _buildSearchAndFilters(),
+
+          // TAB BAR VIEW CONTENT
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Avg Target Attainment", style: TextStyle(fontSize: 11, color: Color(0xFF166534))),
-                  SizedBox(height: 4),
-                  Text("102.8% Target", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF14532D))),
-                  Text("Exceeding Benchmarks", style: TextStyle(fontSize: 10, color: Color(0xFF16A34A))),
-                ],
-              ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEmployeeList(isActiveList: true),
+                _buildEmployeeList(isActiveList: false),
+              ],
             ),
           ),
         ],
@@ -231,546 +129,924 @@ class _ManagerTeamScreenState extends State<ManagerTeamScreen> {
     );
   }
 
+  // =========================================================================
+  // SEARCH & FILTER BAR
+  // =========================================================================
   Widget _buildSearchAndFilters() {
-    final departments = ['All', 'Sales & Business', 'Sales & Operations', 'Strategy & Analytics', 'Human Resources', 'IT & Support'];
-
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         children: [
-          TextField(
-            controller: _searchController,
-            onChanged: (val) => setState(() => _searchQuery = val),
-            decoration: InputDecoration(
-              hintText: "Search employee name, ID or designation...",
-              hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-              prefixIcon: const Icon(Iconsax.search_normal, size: 18, color: Color(0xFF64748B)),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF2563EB))),
+          // Search Input
+          Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: controller.onSearchChanged,
+              decoration: InputDecoration(
+                hintText: "Search staff by name, email, phone or ID...",
+                hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Iconsax.search_normal, size: 18, color: Color(0xFF64748B)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18, color: Color(0xFF64748B)),
+                        onPressed: () {
+                          _searchController.clear();
+                          controller.onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
             ),
           ),
-          const SizedBox(height: 10),
 
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: departments.map((dept) {
-                final isSelected = _selectedDepartment == dept;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(dept, style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : const Color(0xFF475569))),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF2563EB),
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    side: BorderSide.none,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    onSelected: (selected) {
-                      if (selected) setState(() => _selectedDepartment = dept);
-                    },
+          const SizedBox(height: 8),
+
+          // Branch & Department Dropdown Filters
+          Obx(() {
+            final opts = controller.options.value;
+            if (opts == null) return const SizedBox.shrink();
+
+            return Row(
+              children: [
+                // Branch filter
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: controller.selectedBranchId.value,
+                        hint: const Text("All Branches", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF64748B)),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text("All Branches", style: TextStyle(fontSize: 12)),
+                          ),
+                          ...opts.branches.map((b) => DropdownMenuItem<int?>(
+                                value: b.id,
+                                child: Text(b.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                              )),
+                        ],
+                        onChanged: (val) => controller.filterByBranch(val),
+                      ),
+                    ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
+                ),
+                const SizedBox(width: 8),
+
+                // Department filter
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: controller.selectedDepartmentId.value,
+                        hint: const Text("All Depts", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF64748B)),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text("All Depts", style: TextStyle(fontSize: 12)),
+                          ),
+                          ...opts.departments.map((d) => DropdownMenuItem<int?>(
+                                value: d.id,
+                                child: Text(d.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                              )),
+                        ],
+                        onChanged: (val) => controller.filterByDepartment(val),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildEmployeeCard(Map<String, dynamic> emp, NumberFormat format) {
-    final salesPct = emp['salesPercentage'] as int;
-    final isTargetExceeded = salesPct >= 100;
+  // =========================================================================
+  // EMPLOYEE LIST
+  // =========================================================================
+  Widget _buildEmployeeList({required bool isActiveList}) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(40),
+            child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+          ),
+        );
+      }
+
+      final list = isActiveList ? controller.activeEmployees : controller.disabledEmployees;
+
+      if (list.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isActiveList ? Iconsax.user : Iconsax.user_remove,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isActiveList ? "No active staff found" : "No disabled staff accounts",
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isActiveList
+                    ? "Tap '+ Add Staff' to onboard a new employee"
+                    : "Disabled staff accounts will appear here",
+                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return RefreshIndicator(
+        onRefresh: () => controller.fetchEmployees(),
+        color: const Color(0xFF2563EB),
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final emp = list[index];
+            return _buildEmployeeCard(emp, isActiveList);
+          },
+        ),
+      );
+    });
+  }
+
+  // =========================================================================
+  // INDIVIDUAL EMPLOYEE CARD
+  // =========================================================================
+  Widget _buildEmployeeCard(ManagerEmployeeModel emp, bool isActiveList) {
+    final initials = emp.name.isNotEmpty
+        ? emp.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+        : 'EM';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2))],
+        border: Border.all(
+          color: isActiveList ? const Color(0xFFE2E8F0) : const Color(0xFFFCA5A5).withValues(alpha: 0.6),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: InkWell(
-        onTap: () => _openDynamicTargetReportModal(emp, format),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: Avatar, Name & Status
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: const Color(0xFFDBEAFE),
-                    child: Text(emp['avatar'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8))),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(emp['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: (emp['statusColor'] as Color).withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                emp['status'],
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: emp['statusColor'] as Color),
-                              ),
-                            ),
-                          ],
+              // Avatar
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: isActiveList ? const Color(0xFFEFF6FF) : const Color(0xFFFEE2E2),
+                backgroundImage: emp.avatar != null && emp.avatar!.isNotEmpty ? NetworkImage(emp.avatar!) : null,
+                child: emp.avatar == null || emp.avatar!.isEmpty
+                    ? Text(
+                        initials,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isActiveList ? const Color(0xFF2563EB) : const Color(0xFFDC2626),
                         ),
-                        const SizedBox(height: 2),
-                        Text("${emp['role']} • ${emp['department']}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                      ],
-                    ),
-                  ),
-                ],
+                      )
+                    : null,
               ),
-              const SizedBox(height: 12),
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 10),
+              const SizedBox(width: 12),
 
-              // Metrics Grid: Sales, Attendance, Tasks
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Sales Target Goal", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                        Text("${emp['salesPercentage']}%", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isTargetExceeded ? const Color(0xFF059669) : const Color(0xFFD97706))),
-                        Text("${format.format(emp['salesAchieved'])}", style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Attendance Rate", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                        Text("${emp['attendanceRate']}%", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                        const Text("22/22 Days Present", style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Task Execution", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                        Text("${emp['tasksCompleted']}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                        const Text("100% On-time", style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Dynamic Target Report Footer Button
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Iconsax.chart_2, size: 16, color: emp['ratingColor'] as Color),
-                        const SizedBox(width: 6),
-                        Text(emp['rating'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: emp['ratingColor'] as Color)),
+                        Flexible(
+                          child: Text(
+                            emp.name,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            emp.employeeId,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                          ),
+                        ),
                       ],
                     ),
-                    const Row(
+                    const SizedBox(height: 2),
+                    Text(
+                      emp.designation?.name ?? emp.department?.name ?? "Staff",
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF2563EB)),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Branch & Email
+                    Row(
                       children: [
-                        Text("View Dynamic Target Report", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF2563EB)),
+                        if (emp.branch != null) ...[
+                          const Icon(Iconsax.building, size: 12, color: Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Text(emp.branch!.name, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                          const SizedBox(width: 10),
+                        ],
+                        const Icon(Iconsax.sms, size: 12, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            emp.email,
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
+                    if (emp.mobileNo != null && emp.mobileNo!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Iconsax.call, size: 12, color: Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Text(emp.mobileNo!, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                          if (emp.basicSalary > 0) ...[
+                            const SizedBox(width: 10),
+                            const Icon(Iconsax.dollar_circle, size: 12, color: Color(0xFF059669)),
+                            const SizedBox(width: 4),
+                            Text(
+                              NumberFormat.currency(symbol: 'BDT ', decimalDigits: 0).format(emp.basicSalary),
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
+
+          // ACTIONS ROW: ✏️ Edit Profile | 🔑 Reset Password | 🚫 Toggle Status | 🗑️ Delete
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // 1. Edit Profile
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Iconsax.edit_2, size: 14, color: Color(0xFF2563EB)),
+                label: const Text("Edit", style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                onPressed: () => _showEditEmployeeDialog(context, emp),
+              ),
+              const SizedBox(width: 6),
+
+              // 2. Reset Password
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Iconsax.key, size: 14, color: Color(0xFFD97706)),
+                label: const Text("Password", style: TextStyle(fontSize: 11, color: Color(0xFFD97706), fontWeight: FontWeight.bold)),
+                onPressed: () => _showResetPasswordDialog(context, emp),
+              ),
+              const SizedBox(width: 6),
+
+              // 3. Disable / Enable
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: Icon(
+                  isActiveList ? Iconsax.user_remove : Iconsax.user_tick,
+                  size: 14,
+                  color: isActiveList ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                ),
+                label: Text(
+                  isActiveList ? "Disable" : "Enable",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isActiveList ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () => _confirmToggleStatus(context, emp),
+              ),
+              const SizedBox(width: 6),
+
+              // 4. Delete
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Iconsax.trash, size: 16, color: Color(0xFF94A3B8)),
+                tooltip: "Delete Employee",
+                onPressed: () => _confirmDelete(context, emp),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  // ============================================================================
-  // DYNAMIC DETAILED TARGET & PERFORMANCE REPORT MODAL SHEET
-  // ============================================================================
-  void _openDynamicTargetReportModal(Map<String, dynamic> emp, NumberFormat format) {
-    final salesPct = emp['salesPercentage'] as int;
-    final isTargetExceeded = salesPct >= 100;
-    final double targetVal = emp['salesTarget'];
-    final double achievedVal = emp['salesAchieved'];
-    final double variance = achievedVal - targetVal;
-    final recentSales = (emp['recentSales'] as List<Map<String, dynamic>>? ?? []);
+  // =========================================================================
+  // RESET PASSWORD DIALOG
+  // =========================================================================
+  void _showResetPasswordDialog(BuildContext context, ManagerEmployeeModel emp) {
+    final passCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Iconsax.key, color: Color(0xFFD97706), size: 20),
+            const SizedBox(width: 8),
+            Text("Reset Password for ${emp.name}", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Set a new password for this employee account directly without needing their old password.",
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: passCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: "New Password",
+                  prefixIcon: const Icon(Iconsax.lock, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                validator: (v) => (v == null || v.length < 6) ? "Minimum 6 characters" : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: confirmCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: "Confirm Password",
+                  prefixIcon: const Icon(Iconsax.lock, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                validator: (v) => v != passCtrl.text ? "Passwords do not match" : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final ok = await controller.resetEmployeePassword(emp.id, passCtrl.text, confirmCtrl.text);
+                if (ok && ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text("Set Password"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // TOGGLE STATUS CONFIRMATION
+  // =========================================================================
+  void _confirmToggleStatus(BuildContext context, ManagerEmployeeModel emp) {
+    final willDisable = !emp.isDisabled;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          willDisable ? "Disable Account Access?" : "Enable Account Access?",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          willDisable
+              ? "Disabling ${emp.name}'s account will immediately revoke mobile app login access."
+              : "Enabling ${emp.name}'s account will restore their login access.",
+          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: willDisable ? const Color(0xFFDC2626) : const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await controller.toggleEmployeeStatus(emp);
+            },
+            child: Text(willDisable ? "Disable Account" : "Enable Account"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // DELETE CONFIRMATION
+  // =========================================================================
+  void _confirmDelete(BuildContext context, ManagerEmployeeModel emp) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Delete Employee Record?", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(
+          "Are you sure you want to permanently delete ${emp.name} (${emp.employeeId})? This action cannot be undone.",
+          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await controller.deleteEmployee(emp.id);
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // ADD EMPLOYEE MODAL / DIALOG
+  // =========================================================================
+  void _showAddEmployeeDialog(BuildContext context) {
+    final opts = controller.options.value;
+    final formKey = GlobalKey<FormState>();
+
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController(text: "Password123");
+    final phoneCtrl = TextEditingController();
+    final empIdCtrl = TextEditingController(text: opts?.generatedEmployeeId ?? "EMP${DateTime.now().year}0001");
+    final salaryCtrl = TextEditingController(text: "35000");
+    final hoursCtrl = TextEditingController(text: "8");
+    final daysCtrl = TextEditingController(text: "6");
+    final addressCtrl = TextEditingController();
+    final cityCtrl = TextEditingController(text: "Dhaka");
+    final emergencyNameCtrl = TextEditingController();
+    final emergencyPhoneCtrl = TextEditingController();
+
+    int? branchId = opts?.branches.isNotEmpty == true ? opts!.branches.first.id : null;
+    int? deptId = opts?.departments.isNotEmpty == true ? opts!.departments.first.id : null;
+    int? desigId = opts?.designations.isNotEmpty == true ? opts!.designations.first.id : null;
+    int? shiftId = opts?.shifts.isNotEmpty == true ? opts!.shifts.first.id : null;
+    String empType = opts?.employmentTypes.isNotEmpty == true ? opts!.employmentTypes.first.id.toString() : 'full_time';
+    String gender = opts?.genders.isNotEmpty == true ? opts!.genders.first.id.toString() : 'male';
+    String joiningDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    String dob = "1998-05-12";
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.88,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.9,
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Modal Handle & Top Title Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-                ),
-                child: Column(
-                  children: [
-                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFCBD5E1), borderRadius: BorderRadius.circular(2)))),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Add New Staff Member", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Divider(),
+
+              // Form fields
+              Expanded(
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text("ACCOUNT CREDENTIALS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: nameCtrl,
+                          decoration: const InputDecoration(labelText: "Full Name *", prefixIcon: Icon(Iconsax.user)),
+                          validator: (v) => (v == null || v.isEmpty) ? "Name is required" : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(labelText: "Login Email *", prefixIcon: Icon(Iconsax.sms)),
+                          validator: (v) => (v == null || !v.contains('@')) ? "Valid email required" : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: passCtrl,
+                          decoration: const InputDecoration(labelText: "Initial Password *", prefixIcon: Icon(Iconsax.lock)),
+                          validator: (v) => (v == null || v.length < 6) ? "Min 6 characters" : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: phoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(labelText: "Mobile Phone", prefixIcon: Icon(Iconsax.call)),
+                        ),
+
+                        const SizedBox(height: 20),
+                        const Text("ORGANIZATION & PLACEMENT", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: empIdCtrl,
+                          decoration: const InputDecoration(labelText: "Employee ID Code *", prefixIcon: Icon(Iconsax.card)),
+                          validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Branch Dropdown
+                        if (opts != null && opts.branches.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: branchId,
+                            decoration: const InputDecoration(labelText: "Branch *", prefixIcon: Icon(Iconsax.building)),
+                            items: opts.branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                            onChanged: (val) => setModalState(() => branchId = val),
+                          ),
+                        const SizedBox(height: 10),
+
+                        // Department Dropdown
+                        if (opts != null && opts.departments.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: deptId,
+                            decoration: const InputDecoration(labelText: "Department *", prefixIcon: Icon(Iconsax.hierarchy)),
+                            items: opts.departments.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
+                            onChanged: (val) => setModalState(() => deptId = val),
+                          ),
+                        const SizedBox(height: 10),
+
+                        // Designation Dropdown
+                        if (opts != null && opts.designations.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: desigId,
+                            decoration: const InputDecoration(labelText: "Designation *", prefixIcon: Icon(Iconsax.briefcase)),
+                            items: opts.designations.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
+                            onChanged: (val) => setModalState(() => desigId = val),
+                          ),
+                        const SizedBox(height: 10),
+
+                        // Shift Dropdown
+                        if (opts != null && opts.shifts.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: shiftId,
+                            decoration: const InputDecoration(labelText: "Shift *", prefixIcon: Icon(Iconsax.clock)),
+                            items: opts.shifts.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                            onChanged: (val) => setModalState(() => shiftId = val),
+                          ),
+
+                        const SizedBox(height: 20),
+                        const Text("COMPENSATION & TERMS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: salaryCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: "Basic Salary (BDT)", prefixIcon: Icon(Iconsax.dollar_circle)),
+                        ),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: const Color(0xFFDBEAFE),
-                              child: Text(emp['avatar'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                            Expanded(
+                              child: TextFormField(
+                                controller: hoursCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(labelText: "Hours/Day"),
+                              ),
                             ),
                             const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "${emp['name']}'s Target Analytics",
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                ),
-                                Text(
-                                  "Employee ID: ${emp['id']} • ${emp['department']}",
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                ),
-                              ],
+                            Expanded(
+                              child: TextFormField(
+                                controller: daysCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(labelText: "Days/Week"),
+                              ),
                             ),
                           ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Color(0xFF64748B)),
-                          onPressed: () => Navigator.pop(context),
+
+                        const SizedBox(height: 20),
+                        const Text("PERSONAL & EMERGENCY CONTACT", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: addressCtrl,
+                          decoration: const InputDecoration(labelText: "Address Line", prefixIcon: Icon(Iconsax.location)),
                         ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: cityCtrl,
+                          decoration: const InputDecoration(labelText: "City", prefixIcon: Icon(Iconsax.map)),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: emergencyNameCtrl,
+                          decoration: const InputDecoration(labelText: "Emergency Contact Name", prefixIcon: Icon(Iconsax.user_tag)),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: emergencyPhoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(labelText: "Emergency Contact Phone", prefixIcon: Icon(Iconsax.call)),
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
-                  ],
-                ),
-              ),
-
-              // Scrollable Dynamic Content Body
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. DYNAMIC HIGHLIGHT CAROUSEL CARD
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isTargetExceeded
-                                ? [const Color(0xFF065F46), const Color(0xFF059669)]
-                                : [const Color(0xFF1E3A8A), const Color(0xFF2563EB)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isTargetExceeded ? const Color(0xFF059669) : const Color(0xFF2563EB)).withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text("MONTHLY TARGET ATTAINMENT", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF93C5FD), letterSpacing: 0.5)),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      format.format(achievedVal),
-                                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(isTargetExceeded ? Iconsax.award : Iconsax.trend_up, size: 14, color: Colors.white),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "$salesPct% Reached",
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Dynamic Progress Bar Indicator
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: LinearProgressIndicator(
-                                value: (salesPct / 100).clamp(0.0, 1.0),
-                                minHeight: 8,
-                                backgroundColor: Colors.white.withOpacity(0.2),
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Target Goal: ${format.format(targetVal)}",
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0)),
-                                ),
-                                Text(
-                                  isTargetExceeded ? "Surplus: +${format.format(variance)}" : "Remaining: ${format.format(targetVal - achievedVal)}",
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 2. DETAILED METRICS GRID (4 CARDS)
-                      const Text("PERFORMANCE ANALYTICS BREAKDOWN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
-                      const SizedBox(height: 10),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 1.6,
-                        children: [
-                          _buildAnalyticsTile("Target Revenue Goal", format.format(targetVal), "Baseline Monthly", Iconsax.direct_up, const Color(0xFF2563EB)),
-                          _buildAnalyticsTile("Actual Achieved", format.format(achievedVal), "$salesPct% Attainment", Iconsax.money_send, const Color(0xFF059669)),
-                          _buildAnalyticsTile("Variance / Surplus", "+${format.format(variance.clamp(0.0, 9999999.0))}", "Exceeding Benchmark", Iconsax.chart_success, const Color(0xFF7C3AED)),
-                          _buildAnalyticsTile("Est. Commission", format.format(achievedVal * 0.05), "5% Bonus Earnings", Iconsax.coin_1, const Color(0xFFD97706)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 3. HOURLY SALES VELOCITY SLOTS (VISUAL BARS)
-                      const Text("HOURLY SALES VELOCITY", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          children: [
-                            _buildVelocityBar("Morning Slot (09:00 AM - 12:00 PM)", 0.40, "BDT 65,000 (40%)"),
-                            const SizedBox(height: 10),
-                            _buildVelocityBar("Afternoon Slot (12:00 PM - 03:00 PM)", 0.45, "BDT 75,000 (45%)"),
-                            const SizedBox(height: 10),
-                            _buildVelocityBar("Evening Slot (03:00 PM - 06:00 PM)", 0.15, "BDT 28,000 (15%)"),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 4. ITEMIZED RECENT SALES LEDGER BREAKDOWN
-                      const Text("CONTRIBUTING SALES ENTRIES LEDGER", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
-                      const SizedBox(height: 10),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          children: recentSales.map((sale) {
-                            return Column(
-                              children: [
-                                ListTile(
-                                  dense: true,
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(8)),
-                                    child: const Icon(Iconsax.receipt_item, size: 18, color: Color(0xFF059669)),
-                                  ),
-                                  title: Text(sale['client'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                                  subtitle: Text("Invoice: ${sale['ref']} • ${sale['time']}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(format.format(sale['amount']), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF059669))),
-                                      Text(sale['status'], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
-                                    ],
-                                  ),
-                                ),
-                                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // 5. ACTION BUTTONS FOOTER
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                THelperFunctions.showSnackBar("Exporting ${emp['name']} Target Performance PDF Report...");
-                              },
-                              icon: const Icon(Iconsax.document_download, size: 16),
-                              label: const Text("Export PDF", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                foregroundColor: const Color(0xFF2563EB),
-                                side: const BorderSide(color: Color(0xFF93C5FD)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                backgroundColor: const Color(0xFF0F172A),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              child: const Text("Close Analytics", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
                 ),
               ),
+
+              // Submit Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final body = {
+                        'name': nameCtrl.text.trim(),
+                        'email': emailCtrl.text.trim(),
+                        'password': passCtrl.text,
+                        'mobile_no': phoneCtrl.text.trim(),
+                        'employee_id': empIdCtrl.text.trim(),
+                        if (branchId != null) 'branch_id': branchId,
+                        if (deptId != null) 'department_id': deptId,
+                        if (desigId != null) 'designation_id': desigId,
+                        if (shiftId != null) 'shift_id': shiftId,
+                        'employment_type': empType,
+                        'gender': gender,
+                        'date_of_joining': joiningDate,
+                        'date_of_birth': dob,
+                        'basic_salary': double.tryParse(salaryCtrl.text) ?? 35000,
+                        'hours_per_day': int.tryParse(hoursCtrl.text) ?? 8,
+                        'days_per_week': int.tryParse(daysCtrl.text) ?? 6,
+                        if (addressCtrl.text.isNotEmpty) 'address_line_1': addressCtrl.text.trim(),
+                        if (cityCtrl.text.isNotEmpty) 'city': cityCtrl.text.trim(),
+                        if (emergencyNameCtrl.text.isNotEmpty) 'emergency_contact_name': emergencyNameCtrl.text.trim(),
+                        if (emergencyPhoneCtrl.text.isNotEmpty) 'emergency_contact_number': emergencyPhoneCtrl.text.trim(),
+                      };
+
+                      final ok = await controller.createEmployee(body);
+                      if (ok && ctx.mounted) Navigator.pop(ctx);
+                    }
+                  },
+                  child: const Text("Save & Create Employee Account", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildAnalyticsTile(String title, String value, String sub, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // =========================================================================
+  // EDIT EMPLOYEE MODAL / DIALOG
+  // =========================================================================
+  void _showEditEmployeeDialog(BuildContext context, ManagerEmployeeModel emp) {
+    final opts = controller.options.value;
+    final formKey = GlobalKey<FormState>();
+
+    final nameCtrl = TextEditingController(text: emp.name);
+    final emailCtrl = TextEditingController(text: emp.email);
+    final phoneCtrl = TextEditingController(text: emp.mobileNo ?? '');
+    final salaryCtrl = TextEditingController(text: emp.basicSalary.toStringAsFixed(0));
+
+    int? branchId = emp.branch?.id ?? (opts?.branches.isNotEmpty == true ? opts!.branches.first.id : null);
+    int? deptId = emp.department?.id ?? (opts?.departments.isNotEmpty == true ? opts!.departments.first.id : null);
+    int? desigId = emp.designation?.id ?? (opts?.designations.isNotEmpty == true ? opts!.designations.first.id : null);
+    int? shiftId = emp.shift?.id ?? (opts?.shifts.isNotEmpty == true ? opts!.shifts.first.id : null);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-              Icon(icon, size: 16, color: color),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Edit ${emp.name}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: nameCtrl,
+                          decoration: const InputDecoration(labelText: "Full Name *", prefixIcon: Icon(Iconsax.user)),
+                          validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: emailCtrl,
+                          decoration: const InputDecoration(labelText: "Email *", prefixIcon: Icon(Iconsax.sms)),
+                          validator: (v) => (v == null || !v.contains('@')) ? "Valid email required" : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: phoneCtrl,
+                          decoration: const InputDecoration(labelText: "Mobile Phone", prefixIcon: Icon(Iconsax.call)),
+                        ),
+                        const SizedBox(height: 10),
+                        if (opts != null && opts.branches.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: branchId,
+                            decoration: const InputDecoration(labelText: "Branch", prefixIcon: Icon(Iconsax.building)),
+                            items: opts.branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                            onChanged: (val) => setModalState(() => branchId = val),
+                          ),
+                        const SizedBox(height: 10),
+                        if (opts != null && opts.departments.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: deptId,
+                            decoration: const InputDecoration(labelText: "Department", prefixIcon: Icon(Iconsax.hierarchy)),
+                            items: opts.departments.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
+                            onChanged: (val) => setModalState(() => deptId = val),
+                          ),
+                        const SizedBox(height: 10),
+                        if (opts != null && opts.designations.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: desigId,
+                            decoration: const InputDecoration(labelText: "Designation", prefixIcon: Icon(Iconsax.briefcase)),
+                            items: opts.designations.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))).toList(),
+                            onChanged: (val) => setModalState(() => desigId = val),
+                          ),
+                        const SizedBox(height: 10),
+                        if (opts != null && opts.shifts.isNotEmpty)
+                          DropdownButtonFormField<int>(
+                            value: shiftId,
+                            decoration: const InputDecoration(labelText: "Shift", prefixIcon: Icon(Iconsax.clock)),
+                            items: opts.shifts.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                            onChanged: (val) => setModalState(() => shiftId = val),
+                          ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: salaryCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: "Basic Salary (BDT)", prefixIcon: Icon(Iconsax.dollar_circle)),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final body = {
+                        'name': nameCtrl.text.trim(),
+                        'email': emailCtrl.text.trim(),
+                        'mobile_no': phoneCtrl.text.trim(),
+                        if (branchId != null) 'branch_id': branchId,
+                        if (deptId != null) 'department_id': deptId,
+                        if (desigId != null) 'designation_id': desigId,
+                        if (shiftId != null) 'shift_id': shiftId,
+                        'basic_salary': double.tryParse(salaryCtrl.text) ?? 0,
+                      };
+
+                      final ok = await controller.updateEmployee(emp.id, body);
+                      if (ok && ctx.mounted) Navigator.pop(ctx);
+                    }
+                  },
+                  child: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
           ),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-          Text(sub, style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildVelocityBar(String label, double fraction, String valueStr) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-            Text(valueStr, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFE2E8F0),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Text("No employee reports found matching criteria.", style: TextStyle(color: Color(0xFF64748B))),
     );
   }
 }
