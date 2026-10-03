@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/features/authentication/screens/login/login.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/me_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/manager/manager_approvals_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/manager/manager_attendance_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/manager/manager_payroll_screen.dart';
@@ -38,6 +40,24 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     dashboardController.refreshAllDashboardData();
   }
 
+  void _handleLogout() {
+    Get.defaultDialog(
+      title: "Confirm Logout",
+      titleStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+      middleText: "Are you sure you want to sign out from your Manager account?",
+      middleTextStyle: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+      textConfirm: "Log Out",
+      textCancel: "Cancel",
+      confirmTextColor: Colors.white,
+      buttonColor: const Color(0xFFEF4444),
+      cancelTextColor: const Color(0xFF64748B),
+      onConfirm: () async {
+        await AuthService.instance.logout();
+        Get.offAll(() => const LoginScreen());
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget activeBody;
@@ -52,12 +72,18 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         activeBody = ManagerApprovalsScreen(onBack: () => setState(() => _currentNavIndex = 0));
         break;
       case 4:
-        activeBody = ManagerTasksScreen(onBack: () => setState(() => _currentNavIndex = 0));
-        break;
-      case 5:
         activeBody = ManagerTargetsScreen(onBack: () => setState(() => _currentNavIndex = 0));
         break;
+      case 5:
+        activeBody = MeScreen(
+          onBackToDashboard: () => setState(() => _currentNavIndex = 0),
+          onNavigateToTab: (index) => setState(() => _currentNavIndex = index),
+        );
+        break;
       case 6:
+        activeBody = ManagerTasksScreen(onBack: () => setState(() => _currentNavIndex = 0));
+        break;
+      case 7:
         activeBody = ManagerPayrollScreen(onBack: () => setState(() => _currentNavIndex = 0));
         break;
       case 0:
@@ -74,7 +100,10 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         body: SafeArea(
-          child: activeBody,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: KeyedSubtree(key: ValueKey(_currentNavIndex), child: activeBody),
+          ),
         ),
         bottomNavigationBar: _buildManagerBottomNav(),
       ),
@@ -171,38 +200,42 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFF2563EB),
-                child: Text(
-                  userName.isNotEmpty ? userName[0] : "M",
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+          InkWell(
+            onTap: () => setState(() => _currentNavIndex = 5),
+            borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFF2563EB),
+                  child: Text(
+                    userName.isNotEmpty ? userName[0] : "M",
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    userName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(4)),
-                        child: Text(userRole, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(dateStr, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(4)),
+                          child: Text(userRole, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(dateStr, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
 
           Row(
@@ -218,6 +251,11 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   tooltip: "Switch to Staff View",
                   onPressed: widget.onSwitchToStaffMode,
                 ),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 22),
+                tooltip: "Logout",
+                onPressed: () => _handleLogout(),
+              ),
             ],
           ),
         ],
@@ -281,7 +319,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
             accentColor: const Color(0xFFD97706),
             bgColor: const Color(0xFFFFFBEB),
             borderColor: const Color(0xFFFDE68A),
-            onTap: () => setState(() => _currentNavIndex = 4),
+            onTap: () => setState(() => _currentNavIndex = 6),
           ),
         ],
       );
@@ -386,7 +424,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 "$pendingTasks Branch Task Submission(s) to verify",
                 Iconsax.task_square,
                 const Color(0xFFD97706),
-                () => setState(() => _currentNavIndex = 4),
+                () => setState(() => _currentNavIndex = 6),
               ),
 
             if (pendingSales > 0)
@@ -394,7 +432,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 "$pendingSales Sales Log Entry(ies) for review",
                 Iconsax.receipt_edit,
                 const Color(0xFF059669),
-                () => setState(() => _currentNavIndex = 5),
+                () => setState(() => _currentNavIndex = 4),
               ),
           ],
         ),
@@ -451,9 +489,9 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
           _buildHubTile("1. Staff Directory", Iconsax.people, const Color(0xFF2563EB), const Color(0xFFEFF6FF), () => setState(() => _currentNavIndex = 1)),
           _buildHubTile("2. Attendance", Iconsax.calendar_tick, const Color(0xFF059669), const Color(0xFFECFDF5), () => setState(() => _currentNavIndex = 2)),
           _buildHubTile("3. Leave Approvals", Iconsax.verify, const Color(0xFF7C3AED), const Color(0xFFFAF5FF), () => setState(() => _currentNavIndex = 3), badgeCount: pendingLeaves),
-          _buildHubTile("4. Daily Tasks", Iconsax.task_square, const Color(0xFF0284C7), const Color(0xFFF0F9FF), () => setState(() => _currentNavIndex = 4), badgeCount: pendingTasks),
-          _buildHubTile("5. Sales Targets", Iconsax.radar_2, const Color(0xFFDC2626), const Color(0xFFFEF2F2), () => setState(() => _currentNavIndex = 5), badgeCount: pendingSales),
-          _buildHubTile("Payroll", Iconsax.wallet_money, const Color(0xFFD97706), const Color(0xFFFFFBEB), () => setState(() => _currentNavIndex = 6)),
+          _buildHubTile("4. Daily Tasks", Iconsax.task_square, const Color(0xFF0284C7), const Color(0xFFF0F9FF), () => setState(() => _currentNavIndex = 6), badgeCount: pendingTasks),
+          _buildHubTile("5. Sales Targets", Iconsax.radar_2, const Color(0xFFDC2626), const Color(0xFFFEF2F2), () => setState(() => _currentNavIndex = 4), badgeCount: pendingSales),
+          _buildHubTile("Payroll", Iconsax.wallet_money, const Color(0xFFD97706), const Color(0xFFFFFBEB), () => setState(() => _currentNavIndex = 7)),
         ],
       );
     });
@@ -538,7 +576,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 ],
               ),
               InkWell(
-                onTap: () => setState(() => _currentNavIndex = 5),
+                onTap: () => setState(() => _currentNavIndex = 4),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(6)),
@@ -607,52 +645,89 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   }
 
   // ==========================================
-  // BOTTOM NAVIGATION BAR WITH REAL LIVE BADGES
+  // BOTTOM NAVIGATION BAR WITH REAL LIVE BADGES & PROFILE/LOGOUT
   // ==========================================
   Widget _buildManagerBottomNav() {
     return Obx(() {
       final pendingLeaves = dashboardController.pendingLeavesCount.value;
       final pendingTasks = dashboardController.pendingTasksCount.value;
       final pendingSales = dashboardController.pendingSalesLogsCount.value;
+      final totalApprovals = pendingLeaves + pendingTasks + pendingSales;
 
-      return BottomNavigationBar(
-        currentIndex: _currentNavIndex,
-        onTap: (index) => setState(() => _currentNavIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF2563EB),
-        unselectedItemColor: const Color(0xFF64748B),
-        selectedFontSize: 10,
-        unselectedFontSize: 9,
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Iconsax.category), label: 'Overview'),
-          const BottomNavigationBarItem(icon: Icon(Iconsax.people), label: 'Directory'),
-          const BottomNavigationBarItem(icon: Icon(Iconsax.calendar_tick), label: 'Attendance'),
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: pendingLeaves > 0,
-              label: Text(pendingLeaves.toString()),
-              child: const Icon(Iconsax.verify),
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
             ),
-            label: 'Leaves',
-          ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: pendingTasks > 0,
-              label: Text(pendingTasks.toString()),
-              child: const Icon(Iconsax.task_square),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildManagerNavItem(0, Icons.grid_view_rounded, Icons.grid_view_outlined, "Overview"),
+                _buildManagerNavItem(1, Icons.people_alt_rounded, Icons.people_outline_rounded, "Team"),
+                _buildManagerNavItem(2, Icons.event_available_rounded, Icons.event_available_outlined, "Attendance"),
+                _buildManagerNavItem(3, Icons.fact_check_rounded, Icons.fact_check_outlined, "Approvals", badgeCount: totalApprovals),
+                _buildManagerNavItem(4, Icons.track_changes_rounded, Icons.track_changes_outlined, "Targets"),
+                _buildManagerNavItem(5, Icons.person_rounded, Icons.person_outline_rounded, "Profile"),
+              ],
             ),
-            label: 'Tasks',
           ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: pendingSales > 0,
-              label: Text(pendingSales.toString()),
-              child: const Icon(Iconsax.radar_2),
-            ),
-            label: 'Targets',
-          ),
-        ],
+        ),
       );
     });
+  }
+
+  Widget _buildManagerNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label, {int badgeCount = 0}) {
+    final isSelected = _currentNavIndex == index;
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _currentNavIndex = index);
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Badge(
+              isLabelVisible: badgeCount > 0,
+              label: Text(badgeCount.toString()),
+              backgroundColor: const Color(0xFFEF4444),
+              child: Icon(
+                isSelected ? activeIcon : inactiveIcon,
+                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              style: TextStyle(
+                fontSize: 10,
+                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

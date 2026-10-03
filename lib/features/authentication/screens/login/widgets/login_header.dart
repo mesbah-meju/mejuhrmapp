@@ -70,7 +70,7 @@ class TLoginHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                "SALES • PEOPLE • GROWTH",
+                "SALES • TRACK • GROWTH",
                 style: TextStyle(
                   fontSize: 8.5,
                   fontWeight: FontWeight.w700,
@@ -82,34 +82,6 @@ class TLoginHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Welcome Back Title
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                "Welcome Back",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.5,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                "Sign in to your workplace account to continue",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

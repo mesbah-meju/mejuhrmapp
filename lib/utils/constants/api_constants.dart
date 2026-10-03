@@ -17,7 +17,9 @@ class ApiConstants {
   static const String userProfileEndpoint = "$apiBaseUrl/user";
   static const String refreshTokenEndpoint = "$apiBaseUrl/refresh";
   static const String logoutEndpoint = "$apiBaseUrl/logout";
-  static const String forgotPasswordEndpoint = "$v1BaseUrl/forgot-password";
+  static const String forgotPasswordEndpoint = "$apiBaseUrl/forgot-password";
+  static const String forgotPasswordManagerEndpoint = "$apiBaseUrl/forgot-password/manager";
+  static const String forgotPasswordStaffEndpoint = "$apiBaseUrl/forgot-password/staff";
   static const String bootstrapEndpoint = "$v1BaseUrl/bootstrap";
   static const String registerEndpoint = "$v1BaseUrl/register";
 
