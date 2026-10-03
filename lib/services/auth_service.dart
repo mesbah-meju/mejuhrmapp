@@ -3,7 +3,7 @@ import 'package:get_storage/get_storage.dart';
 
 import 'package:auth_ui_app/features/hrm/models/auth_response_model.dart';
 import 'package:auth_ui_app/services/hrm_api_service.dart';
-import 'package:auth_ui_app/services/offline_storage_service.dart';
+import 'package:auth_ui_app/services/secure_storage_service.dart';
 import 'package:auth_ui_app/utils/constants/api_constants.dart';
 
 class AuthService {
@@ -72,7 +72,7 @@ class AuthService {
     }
   }
 
-  /// Save Auth Session to GetStorage & OfflineStorage Cache
+  /// Save Auth Session to Secure Storage & local state
   Future<void> _saveSession({
     required String token,
     required Map<String, dynamic> user,
@@ -80,7 +80,11 @@ class AuthService {
     List<dynamic>? tenantLocations,
     required String loginType,
   }) async {
+    // 1. Store bearer token securely in encrypted hardware storage & persistent cache
+    await SecureStorageService.instance.setToken(token);
     await _storage.write(ApiConstants.storageTokenKey, token);
+
+    // 2. Store non-sensitive user display metadata
     await _storage.write(ApiConstants.storageUserKey, user);
     if (employee != null) {
       await _storage.write(ApiConstants.storageEmployeeKey, employee);
@@ -90,26 +94,24 @@ class AuthService {
     }
     await _storage.write(ApiConstants.storageUserModeKey, loginType);
     await _storage.write(ApiConstants.storageIsLoggedInKey, true);
-
-    // Update offline cache for quick offline cold starts
-    await OfflineStorageService.instance.saveCache(OfflineStorageService.keyUserProfileCache, {
-      'user': user,
-      'employee': employee,
-      'tenant_locations': tenantLocations,
-      'login_type': loginType,
-    });
   }
 
   /// Check if user is already logged in
   bool isLoggedIn() {
     final token = getToken();
     final isLogged = _storage.read<bool>(ApiConstants.storageIsLoggedInKey) ?? false;
-    return isLogged && token != null && token.isNotEmpty;
+    final hasUser = getUser() != null;
+    return isLogged && hasUser && (token != null && token.isNotEmpty);
   }
 
-  /// Get active bearer token
+  /// Get active bearer token synchronously from cache if available or token key
   String? getToken() {
-    return _storage.read<String>(ApiConstants.storageTokenKey);
+    return SecureStorageService.instance.cachedToken ?? _storage.read<String>(ApiConstants.storageTokenKey);
+  }
+
+  /// Get active bearer token asynchronously from encrypted SecureStorage
+  Future<String?> getSecureToken() async {
+    return await SecureStorageService.instance.getToken();
   }
 
   /// Get current user data as Map
@@ -127,6 +129,24 @@ class AuthService {
       return UserModel.fromJson(rawUser);
     }
     return null;
+  }
+
+  /// Get current user ID (scoped for local database)
+  int getCurrentUserId() {
+    return getCurrentUser()?.id ?? 0;
+  }
+
+  /// Get current tenant/company ID (scoped for multi-tenant isolation)
+  int getCurrentTenantId() {
+    final employee = getEmployee();
+    if (employee != null && employee.branch != null && employee.branch!.id > 0) {
+      return employee.branch!.id;
+    }
+    final user = getCurrentUser();
+    if (user != null && user.createdBy != null && user.createdBy! > 0) {
+      return user.createdBy!;
+    }
+    return 1; // Default company workspace ID
   }
 
   /// Get Employee data as Map
@@ -197,6 +217,7 @@ class AuthService {
       await HrmApiService.instance.logout();
     } catch (_) {}
 
+    await SecureStorageService.instance.clearAuthCredentials();
     await _storage.remove(ApiConstants.storageTokenKey);
     await _storage.remove(ApiConstants.storageUserKey);
     await _storage.remove(ApiConstants.storageEmployeeKey);

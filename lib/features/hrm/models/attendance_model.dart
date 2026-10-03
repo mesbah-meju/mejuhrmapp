@@ -288,6 +288,8 @@ class AttendanceRecord {
   final String date;
   final String? clockIn;
   final String? clockOut;
+  final bool isLate;
+  final bool isEarly;
   final String totalHours;
   final double totalHoursNumeric;
   final String? breakHours;
@@ -297,6 +299,7 @@ class AttendanceRecord {
   final double overtimeAmount;
   final String status;
   final String? calculatedStatus;
+  final String? notes;
   final AttendanceLocationDetail? checkInLocation;
   final AttendanceBranchDetail? checkInBranch;
   final AttendanceLocationDetail? checkOutLocation;
@@ -309,6 +312,8 @@ class AttendanceRecord {
     required this.date,
     this.clockIn,
     this.clockOut,
+    this.isLate = false,
+    this.isEarly = false,
     this.totalHours = "0.00 hours",
     this.totalHoursNumeric = 0.0,
     this.breakHours,
@@ -318,6 +323,7 @@ class AttendanceRecord {
     this.overtimeAmount = 0.0,
     this.status = "present",
     this.calculatedStatus,
+    this.notes,
     this.checkInLocation,
     this.checkInBranch,
     this.checkOutLocation,
@@ -370,6 +376,8 @@ class AttendanceRecord {
       date: json['date']?.toString() ?? '',
       clockIn: json['clock_in']?.toString(),
       clockOut: json['clock_out']?.toString(),
+      isLate: json['is_late'] == true || json['is_late'] == 1,
+      isEarly: json['is_early'] == true || json['is_early'] == 1,
       totalHours: json['total_hours']?.toString() ?? '0.00 hours',
       totalHoursNumeric: (json['total_hours_numeric'] is num)
           ? (json['total_hours_numeric'] as num).toDouble()
@@ -387,6 +395,7 @@ class AttendanceRecord {
           : double.tryParse(json['overtime_amount']?.toString() ?? '0.0') ?? 0.0,
       status: json['status']?.toString() ?? 'present',
       calculatedStatus: json['calculated_status']?.toString(),
+      notes: json['notes']?.toString(),
       checkInLocation: inLoc,
       checkInBranch: inBranch,
       checkOutLocation: outLoc,
@@ -401,6 +410,8 @@ class AttendanceRecord {
         'date': date,
         'clock_in': clockIn,
         'clock_out': clockOut,
+        'is_late': isLate,
+        'is_early': isEarly,
         'total_hours': totalHours,
         'total_hours_numeric': totalHoursNumeric,
         'break_hours': breakHours,
@@ -410,6 +421,7 @@ class AttendanceRecord {
         'overtime_amount': overtimeAmount,
         'status': status,
         'calculated_status': calculatedStatus,
+        'notes': notes,
         'check_in_location': checkInLocation?.toJson(),
         'check_in_branch': checkInBranch?.toJson(),
         'check_out_location': checkOutLocation?.toJson(),
@@ -442,7 +454,9 @@ class AttendanceHistoryResponse {
     return AttendanceHistoryResponse(
       summary: json['summary'] is Map<String, dynamic>
           ? AttendanceSummaryModel.fromJson(json['summary'])
-          : (json['summary'] is Map ? AttendanceSummaryModel.fromJson(Map<String, dynamic>.from(json['summary'])) : AttendanceSummaryModel()),
+          : (json['summary'] is Map
+              ? AttendanceSummaryModel.fromJson(Map<String, dynamic>.from(json['summary']))
+              : AttendanceSummaryModel()),
       history: hist,
     );
   }
@@ -450,5 +464,343 @@ class AttendanceHistoryResponse {
   Map<String, dynamic> toJson() => {
         'summary': summary.toJson(),
         'history': history.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 1.2 Offline Punch Batch Sync Result Item
+class AttendanceSyncResultItem {
+  final String id;
+  final String status;
+  final String? type;
+  final String? date;
+  final String? time;
+  final int? attendanceId;
+  final double? totalHours;
+  final String? message;
+
+  AttendanceSyncResultItem({
+    required this.id,
+    required this.status,
+    this.type,
+    this.date,
+    this.time,
+    this.attendanceId,
+    this.totalHours,
+    this.message,
+  });
+
+  factory AttendanceSyncResultItem.fromJson(Map<String, dynamic> json) {
+    return AttendanceSyncResultItem(
+      id: json['id']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'synced',
+      type: json['type']?.toString(),
+      date: json['date']?.toString(),
+      time: json['time']?.toString(),
+      attendanceId: json['attendance_id'] is int ? json['attendance_id'] : int.tryParse(json['attendance_id']?.toString() ?? ''),
+      totalHours: (json['total_hours'] is num) ? (json['total_hours'] as num).toDouble() : double.tryParse(json['total_hours']?.toString() ?? ''),
+      message: json['message']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+        'type': type,
+        'date': date,
+        'time': time,
+        'attendance_id': attendanceId,
+        'total_hours': totalHours,
+        'message': message,
+      };
+}
+
+/// 1.2 Offline Punch Batch Sync Response
+class AttendanceSyncResponse {
+  final int totalSubmitted;
+  final int syncedCount;
+  final int failedCount;
+  final List<AttendanceSyncResultItem> results;
+
+  AttendanceSyncResponse({
+    this.totalSubmitted = 0,
+    this.syncedCount = 0,
+    this.failedCount = 0,
+    this.results = const [],
+  });
+
+  factory AttendanceSyncResponse.fromJson(Map<String, dynamic> json) {
+    List<AttendanceSyncResultItem> resList = [];
+    if (json['results'] is List) {
+      resList = (json['results'] as List)
+          .map((e) => AttendanceSyncResultItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return AttendanceSyncResponse(
+      totalSubmitted: json['total_submitted'] is int ? json['total_submitted'] : int.tryParse(json['total_submitted']?.toString() ?? '0') ?? 0,
+      syncedCount: json['synced_count'] is int ? json['synced_count'] : int.tryParse(json['synced_count']?.toString() ?? '0') ?? 0,
+      failedCount: json['failed_count'] is int ? json['failed_count'] : int.tryParse(json['failed_count']?.toString() ?? '0') ?? 0,
+      results: resList,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'total_submitted': totalSubmitted,
+        'synced_count': syncedCount,
+        'failed_count': failedCount,
+        'results': results.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 1.5 Comprehensive Staff Monthly / Custom Period Report Models
+class StaffReportEmployeeModel {
+  final int id;
+  final String name;
+  final String? employeeCode;
+  final String? department;
+  final String? designation;
+  final String? branch;
+  final String? shift;
+
+  StaffReportEmployeeModel({
+    required this.id,
+    required this.name,
+    this.employeeCode,
+    this.department,
+    this.designation,
+    this.branch,
+    this.shift,
+  });
+
+  factory StaffReportEmployeeModel.fromJson(Map<String, dynamic> json) {
+    return StaffReportEmployeeModel(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      name: json['name']?.toString() ?? '',
+      employeeCode: json['employee_code']?.toString(),
+      department: json['department']?.toString(),
+      designation: json['designation']?.toString(),
+      branch: json['branch']?.toString(),
+      shift: json['shift']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'employee_code': employeeCode,
+        'department': department,
+        'designation': designation,
+        'branch': branch,
+        'shift': shift,
+      };
+}
+
+class StaffReportPeriodModel {
+  final String startDate;
+  final String endDate;
+  final int totalDays;
+
+  StaffReportPeriodModel({
+    required this.startDate,
+    required this.endDate,
+    this.totalDays = 0,
+  });
+
+  factory StaffReportPeriodModel.fromJson(Map<String, dynamic> json) {
+    return StaffReportPeriodModel(
+      startDate: json['start_date']?.toString() ?? '',
+      endDate: json['end_date']?.toString() ?? '',
+      totalDays: json['total_days'] is int
+          ? json['total_days']
+          : int.tryParse(json['total_days']?.toString() ?? '0') ??
+              (json['total_calendar_days'] is int ? json['total_calendar_days'] : int.tryParse(json['total_calendar_days']?.toString() ?? '0') ?? 0),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'start_date': startDate,
+        'end_date': endDate,
+        'total_days': totalDays,
+      };
+}
+
+class StaffReportSummaryModel {
+  final int workingDaysCount;
+  final int holidayDaysCount;
+  final int leaveDaysCount;
+  final int presentDaysCount;
+  final int halfDaysCount;
+  final int absentDaysCount;
+  final int lateDaysCount;
+  final int earlyExitCount;
+  final double attendancePercentage;
+  final double scheduledHours;
+  final double workedHours;
+  final double breakHours;
+  final double overtimeHours;
+  final double overtimeAmount;
+
+  StaffReportSummaryModel({
+    this.workingDaysCount = 0,
+    this.holidayDaysCount = 0,
+    this.leaveDaysCount = 0,
+    this.presentDaysCount = 0,
+    this.halfDaysCount = 0,
+    this.absentDaysCount = 0,
+    this.lateDaysCount = 0,
+    this.earlyExitCount = 0,
+    this.attendancePercentage = 0.0,
+    this.scheduledHours = 0.0,
+    this.workedHours = 0.0,
+    this.breakHours = 0.0,
+    this.overtimeHours = 0.0,
+    this.overtimeAmount = 0.0,
+  });
+
+  factory StaffReportSummaryModel.fromJson(Map<String, dynamic> json) {
+    return StaffReportSummaryModel(
+      workingDaysCount: json['working_days_count'] is int ? json['working_days_count'] : int.tryParse(json['working_days_count']?.toString() ?? '0') ?? 0,
+      holidayDaysCount: json['holiday_days_count'] is int ? json['holiday_days_count'] : int.tryParse(json['holiday_days_count']?.toString() ?? '0') ?? 0,
+      leaveDaysCount: json['leave_days_count'] is int ? json['leave_days_count'] : int.tryParse(json['leave_days_count']?.toString() ?? '0') ?? 0,
+      presentDaysCount: json['present_days_count'] is int ? json['present_days_count'] : int.tryParse(json['present_days_count']?.toString() ?? '0') ?? 0,
+      halfDaysCount: json['half_days_count'] is int ? json['half_days_count'] : int.tryParse(json['half_days_count']?.toString() ?? '0') ?? 0,
+      absentDaysCount: json['absent_days_count'] is int ? json['absent_days_count'] : int.tryParse(json['absent_days_count']?.toString() ?? '0') ?? 0,
+      lateDaysCount: json['late_days_count'] is int ? json['late_days_count'] : int.tryParse(json['late_days_count']?.toString() ?? '0') ?? 0,
+      earlyExitCount: json['early_exit_count'] is int ? json['early_exit_count'] : int.tryParse(json['early_exit_count']?.toString() ?? '0') ?? 0,
+      attendancePercentage: (json['attendance_percentage'] is num) ? (json['attendance_percentage'] as num).toDouble() : double.tryParse(json['attendance_percentage']?.toString() ?? '0.0') ?? 0.0,
+      scheduledHours: (json['scheduled_hours'] is num) ? (json['scheduled_hours'] as num).toDouble() : double.tryParse(json['scheduled_hours']?.toString() ?? '0.0') ?? 0.0,
+      workedHours: (json['worked_hours'] is num) ? (json['worked_hours'] as num).toDouble() : double.tryParse(json['worked_hours']?.toString() ?? '0.0') ?? 0.0,
+      breakHours: (json['break_hours'] is num) ? (json['break_hours'] as num).toDouble() : double.tryParse(json['break_hours']?.toString() ?? '0.0') ?? 0.0,
+      overtimeHours: (json['overtime_hours'] is num) ? (json['overtime_hours'] as num).toDouble() : double.tryParse(json['overtime_hours']?.toString() ?? '0.0') ?? 0.0,
+      overtimeAmount: (json['overtime_amount'] is num) ? (json['overtime_amount'] as num).toDouble() : double.tryParse(json['overtime_amount']?.toString() ?? '0.0') ?? 0.0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'working_days_count': workingDaysCount,
+        'holiday_days_count': holidayDaysCount,
+        'leave_days_count': leaveDaysCount,
+        'present_days_count': presentDaysCount,
+        'half_days_count': halfDaysCount,
+        'absent_days_count': absentDaysCount,
+        'late_days_count': lateDaysCount,
+        'early_exit_count': earlyExitCount,
+        'attendance_percentage': attendancePercentage,
+        'scheduled_hours': scheduledHours,
+        'worked_hours': workedHours,
+        'break_hours': breakHours,
+        'overtime_hours': overtimeHours,
+        'overtime_amount': overtimeAmount,
+      };
+}
+
+class StaffReportTimelineItem {
+  final String date;
+  final String dayName;
+  final String dayType;
+  final String status;
+  final String? holidayName;
+  final String? leaveTitle;
+  final String? clockIn;
+  final String? clockOut;
+  final bool isLate;
+  final bool isEarly;
+  final double workedHours;
+  final double breakHours;
+  final double overtimeHours;
+  final double overtimeAmount;
+  final String? location;
+
+  StaffReportTimelineItem({
+    required this.date,
+    required this.dayName,
+    this.dayType = 'working_day',
+    this.status = 'present',
+    this.holidayName,
+    this.leaveTitle,
+    this.clockIn,
+    this.clockOut,
+    this.isLate = false,
+    this.isEarly = false,
+    this.workedHours = 0.0,
+    this.breakHours = 0.0,
+    this.overtimeHours = 0.0,
+    this.overtimeAmount = 0.0,
+    this.location,
+  });
+
+  factory StaffReportTimelineItem.fromJson(Map<String, dynamic> json) {
+    return StaffReportTimelineItem(
+      date: json['date']?.toString() ?? '',
+      dayName: json['day_name']?.toString() ?? '',
+      dayType: json['day_type']?.toString() ?? 'working_day',
+      status: json['status']?.toString() ?? 'present',
+      holidayName: json['holiday_name']?.toString(),
+      leaveTitle: json['leave_title']?.toString(),
+      clockIn: json['clock_in']?.toString(),
+      clockOut: json['clock_out']?.toString(),
+      isLate: json['is_late'] == true || json['is_late'] == 1,
+      isEarly: json['is_early'] == true || json['is_early'] == 1,
+      workedHours: (json['worked_hours'] is num) ? (json['worked_hours'] as num).toDouble() : double.tryParse(json['worked_hours']?.toString() ?? '0.0') ?? 0.0,
+      breakHours: (json['break_hours'] is num) ? (json['break_hours'] as num).toDouble() : double.tryParse(json['break_hours']?.toString() ?? '0.0') ?? 0.0,
+      overtimeHours: (json['overtime_hours'] is num) ? (json['overtime_hours'] as num).toDouble() : double.tryParse(json['overtime_hours']?.toString() ?? '0.0') ?? 0.0,
+      overtimeAmount: (json['overtime_amount'] is num) ? (json['overtime_amount'] as num).toDouble() : double.tryParse(json['overtime_amount']?.toString() ?? '0.0') ?? 0.0,
+      location: json['location']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'date': date,
+        'day_name': dayName,
+        'day_type': dayType,
+        'status': status,
+        'holiday_name': holidayName,
+        'leave_title': leaveTitle,
+        'clock_in': clockIn,
+        'clock_out': clockOut,
+        'is_late': isLate,
+        'is_early': isEarly,
+        'worked_hours': workedHours,
+        'break_hours': breakHours,
+        'overtime_hours': overtimeHours,
+        'overtime_amount': overtimeAmount,
+        'location': location,
+      };
+}
+
+class StaffAttendanceReportResponse {
+  final StaffReportEmployeeModel? employee;
+  final StaffReportPeriodModel? period;
+  final StaffReportSummaryModel summary;
+  final List<StaffReportTimelineItem> timeline;
+
+  StaffAttendanceReportResponse({
+    this.employee,
+    this.period,
+    required this.summary,
+    this.timeline = const [],
+  });
+
+  factory StaffAttendanceReportResponse.fromJson(Map<String, dynamic> json) {
+    List<StaffReportTimelineItem> timeList = [];
+    if (json['timeline'] is List) {
+      timeList = (json['timeline'] as List)
+          .map((e) => StaffReportTimelineItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return StaffAttendanceReportResponse(
+      employee: json['employee'] is Map ? StaffReportEmployeeModel.fromJson(Map<String, dynamic>.from(json['employee'])) : null,
+      period: json['period'] is Map ? StaffReportPeriodModel.fromJson(Map<String, dynamic>.from(json['period'])) : null,
+      summary: json['summary'] is Map ? StaffReportSummaryModel.fromJson(Map<String, dynamic>.from(json['summary'])) : StaffReportSummaryModel(),
+      timeline: timeList,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'employee': employee?.toJson(),
+        'period': period?.toJson(),
+        'summary': summary.toJson(),
+        'timeline': timeline.map((e) => e.toJson()).toList(),
       };
 }

@@ -10,3 +10,4 @@ export 'custom_switch_tile.dart';
 export 'custom_date_picker_field.dart';
 export 'custom_search_field.dart';
 export 'custom_chip_selector.dart';
+export '../tabs/tabs.dart';

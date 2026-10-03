@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:auth_ui_app/services/auth_service.dart';
+import 'package:auth_ui_app/services/connectivity_service.dart';
 import 'package:auth_ui_app/utils/constants/api_constants.dart';
 
 class ApiResponse<T> {
@@ -34,10 +36,10 @@ class ApiClient {
   final http.Client _client = http.Client();
 
   /// Retrieve bearer token from local storage
-  String? get token => _storage.read<String>(ApiConstants.storageTokenKey);
+  String? get token => AuthService.instance.getToken() ?? _storage.read<String>(ApiConstants.storageTokenKey);
 
   /// Standard Request Headers
-  Map<String, String> get headers {
+  Map<String, String> getHeaders({String? idempotencyKey, Map<String, String>? customHeaders}) {
     final Map<String, String> map = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -46,6 +48,13 @@ class ApiClient {
     if (currentToken != null && currentToken.isNotEmpty) {
       map['Authorization'] = 'Bearer $currentToken';
     }
+    if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
+      map['Idempotency-Key'] = idempotencyKey;
+      map['X-Idempotency-Key'] = idempotencyKey;
+    }
+    if (customHeaders != null) {
+      map.addAll(customHeaders);
+    }
     return map;
   }
 
@@ -53,6 +62,7 @@ class ApiClient {
   Future<ApiResponse<T>> get<T>(
     String url, {
     Map<String, String>? queryParams,
+    Map<String, String>? customHeaders,
     T Function(dynamic json)? fromJson,
     Duration timeout = const Duration(seconds: 20),
   }) async {
@@ -66,30 +76,38 @@ class ApiClient {
     }
 
     try {
-      final response = await _client.get(uri, headers: headers).timeout(timeout);
+      final response = await _client.get(uri, headers: getHeaders(customHeaders: customHeaders)).timeout(timeout);
       return _handleResponse<T>(response, fromJson);
     } catch (e) {
       return _handleError<T>(e, url);
     }
   }
 
-  /// POST Request
+  /// POST Request with Idempotency Key support
   Future<ApiResponse<T>> post<T>(
     String url, {
     dynamic body,
+    String? idempotencyKey,
+    Map<String, String>? customHeaders,
     T Function(dynamic json)? fromJson,
     Duration timeout = const Duration(seconds: 20),
   }) async {
     final uri = Uri.parse(url);
 
     if (kDebugMode) {
-      print("[API POST] -> $uri");
+      print("[API POST] -> $uri ${idempotencyKey != null ? '[Idempotency-Key: $idempotencyKey]' : ''}");
       if (body != null) print("[API Payload] -> ${jsonEncode(body)}");
     }
 
     try {
       final encodedBody = body != null ? jsonEncode(body) : null;
-      final response = await _client.post(uri, headers: headers, body: encodedBody).timeout(timeout);
+      final response = await _client
+          .post(
+            uri,
+            headers: getHeaders(idempotencyKey: idempotencyKey, customHeaders: customHeaders),
+            body: encodedBody,
+          )
+          .timeout(timeout);
       return _handleResponse<T>(response, fromJson);
     } catch (e) {
       return _handleError<T>(e, url);
@@ -100,6 +118,8 @@ class ApiClient {
   Future<ApiResponse<T>> put<T>(
     String url, {
     dynamic body,
+    String? idempotencyKey,
+    Map<String, String>? customHeaders,
     T Function(dynamic json)? fromJson,
     Duration timeout = const Duration(seconds: 20),
   }) async {
@@ -107,7 +127,13 @@ class ApiClient {
 
     try {
       final encodedBody = body != null ? jsonEncode(body) : null;
-      final response = await _client.put(uri, headers: headers, body: encodedBody).timeout(timeout);
+      final response = await _client
+          .put(
+            uri,
+            headers: getHeaders(idempotencyKey: idempotencyKey, customHeaders: customHeaders),
+            body: encodedBody,
+          )
+          .timeout(timeout);
       return _handleResponse<T>(response, fromJson);
     } catch (e) {
       return _handleError<T>(e, url);
@@ -118,6 +144,7 @@ class ApiClient {
   Future<ApiResponse<T>> delete<T>(
     String url, {
     dynamic body,
+    Map<String, String>? customHeaders,
     T Function(dynamic json)? fromJson,
     Duration timeout = const Duration(seconds: 20),
   }) async {
@@ -125,7 +152,13 @@ class ApiClient {
 
     try {
       final encodedBody = body != null ? jsonEncode(body) : null;
-      final response = await _client.delete(uri, headers: headers, body: encodedBody).timeout(timeout);
+      final response = await _client
+          .delete(
+            uri,
+            headers: getHeaders(customHeaders: customHeaders),
+            body: encodedBody,
+          )
+          .timeout(timeout);
       return _handleResponse<T>(response, fromJson);
     } catch (e) {
       return _handleError<T>(e, url);
@@ -142,6 +175,11 @@ class ApiClient {
       print("[API Response ${response.request?.url}] StatusCode: $statusCode");
       print("[API Body] ${response.body}");
     }
+
+    // Report successful connection to ConnectivityService
+    try {
+      ConnectivityService.instance.reportNetworkSuccess();
+    } catch (_) {}
 
     dynamic responseBody;
     try {
@@ -215,6 +253,10 @@ class ApiClient {
     if (kDebugMode) {
       print("[API Exception] for $url: $error");
     }
+
+    try {
+      ConnectivityService.instance.reportNetworkFailure(error);
+    } catch (_) {}
 
     String msg = "Connection error. Please check your network connection.";
     if (error is TimeoutException) {

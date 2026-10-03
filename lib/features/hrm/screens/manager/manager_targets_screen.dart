@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
+import 'package:auth_ui_app/common/widgets/form_fields/form_fields.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/models/manager_models.dart';
 import 'package:auth_ui_app/features/hrm/models/target_model.dart';
@@ -39,74 +41,55 @@ class _ManagerTargetsScreenState extends State<ManagerTargetsScreen> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: widget.onBack != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                onPressed: widget.onBack,
-              )
-            : null,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Performly Sales & Targets", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            Text("Target Management & Sales Log Review", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
-            tooltip: "Refresh",
-            onPressed: () {
-              controller.fetchTargets();
-              controller.fetchSalesLogs();
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2563EB),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF2563EB),
-          indicatorWeight: 3,
-          tabs: [
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.receipt_edit, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Sales Logs (${controller.pendingLogsCount})"),
-                    ],
-                  ),
-                )),
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.radar_2, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Sales Targets (${controller.targets.length})"),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateTargetModal(context),
         backgroundColor: const Color(0xFF2563EB),
         icon: const Icon(Icons.add_chart_rounded, color: Colors.white),
         label: const Text("New Target", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSalesLogsTab(),
-          _buildTargetsTab(),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Sales & Targets",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: () {
+                  controller.fetchTargets();
+                  controller.fetchSalesLogs();
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+              child: Obx(() => CustomSegmentedTabBar(
+                    controller: _tabController,
+                    tabs: [
+                      SegmentTab(
+                        label: "Sales Logs",
+                        icon: const Icon(Iconsax.receipt_edit),
+                        badgeCount: controller.pendingLogsCount,
+                      ),
+                      SegmentTab(
+                        label: "Sales Targets",
+                        icon: const Icon(Iconsax.radar_2),
+                        badgeCount: controller.targets.length,
+                      ),
+                    ],
+                  )),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSalesLogsTab(),
+                  _buildTargetsTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -495,29 +478,33 @@ class _ManagerTargetsScreenState extends State<ManagerTargetsScreen> with Single
                       validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<int?>(
+                    CustomDropdownField<int?>(
+                      label: "Assign to Staff Member",
+                      sheetTitle: "Select Staff Member",
                       value: assignedUserId,
-                      decoration: const InputDecoration(labelText: "Assign to Staff Member"),
+                      prefixIcon: const Icon(Iconsax.user, size: 18, color: Color(0xFF64748B)),
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text("All Sales Team")),
-                        ...empController.activeEmployees.where((e) => e.userId != null).map(
-                              (e) => DropdownMenuItem<int?>(value: e.userId, child: Text(e.name)),
-                            ),
+                        null,
+                        ...empController.activeEmployees.where((e) => e.userId != null).map((e) => e.userId),
                       ],
+                      itemLabelBuilder: (id) {
+                        if (id == null) return "All Sales Team";
+                        final match = empController.activeEmployees.firstWhereOrNull((e) => e.userId == id);
+                        return match?.name ?? "Sales Staff ($id)";
+                      },
                       onChanged: (val) => setModalState(() => assignedUserId = val),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: CustomDropdownField<String>(
+                            label: "Period",
+                            sheetTitle: "Select Period",
+                            searchable: false,
                             value: periodType,
-                            decoration: const InputDecoration(labelText: "Period"),
-                            items: const [
-                              DropdownMenuItem(value: 'monthly', child: Text("Monthly")),
-                              DropdownMenuItem(value: 'quarterly', child: Text("Quarterly")),
-                              DropdownMenuItem(value: 'yearly', child: Text("Yearly")),
-                            ],
+                            items: const ['monthly', 'quarterly', 'yearly'],
+                            itemLabelBuilder: (p) => p.capitalizeFirst ?? p,
                             onChanged: (val) => setModalState(() => periodType = val ?? 'monthly'),
                           ),
                         ),
@@ -630,14 +617,13 @@ class _ManagerTargetsScreenState extends State<ManagerTargetsScreen> with Single
                       decoration: const InputDecoration(labelText: "Target Amount (BDT)"),
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
+                    CustomDropdownField<String>(
+                      label: "Status",
+                      sheetTitle: "Select Status",
+                      searchable: false,
                       value: status,
-                      decoration: const InputDecoration(labelText: "Status"),
-                      items: const [
-                        DropdownMenuItem(value: 'active', child: Text("Active")),
-                        DropdownMenuItem(value: 'completed', child: Text("Completed")),
-                        DropdownMenuItem(value: 'cancelled', child: Text("Cancelled")),
-                      ],
+                      items: const ['active', 'completed', 'cancelled'],
+                      itemLabelBuilder: (s) => s.capitalizeFirst ?? s,
                       onChanged: (val) => setModalState(() => status = val ?? 'active'),
                     ),
                     const SizedBox(height: 20),

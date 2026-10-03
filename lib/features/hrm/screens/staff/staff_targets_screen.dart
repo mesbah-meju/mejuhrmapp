@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/models/target_model.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
@@ -87,58 +88,13 @@ class _TargetsScreenState extends State<TargetsScreen> {
   // TOP HEADER
   // =========================================================================
   Widget _buildTopHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            if (widget.onBackToDashboard != null)
-              IconButton(
-                onPressed: widget.onBackToDashboard,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF1E293B)),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              )
-            else
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Iconsax.chart_21, size: 20, color: Color(0xFF2563EB)),
-              ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Performly Targets",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  "Sales targets & performance logs",
-                  style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-        // Quick Refresh
-        IconButton(
-          onPressed: controller.refreshAll,
-          icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
-          tooltip: "Refresh Targets",
-        ),
-      ],
+    return AppPageHeader(
+      title: "Sales Targets",
+      padding: EdgeInsets.zero,
+      onBack: widget.onBackToDashboard ?? () => Navigator.of(context).maybePop(),
+      action: AppHeaderActionBadge.refresh(
+        onTap: controller.refreshAll,
+      ),
     );
   }
 

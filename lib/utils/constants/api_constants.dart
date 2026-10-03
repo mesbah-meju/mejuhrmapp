@@ -34,15 +34,21 @@ class ApiConstants {
   static const String clockInOutEndpoint = "$apiBaseUrl/hrm/clock-in-out";
   static const String attendanceTodayEndpoint = "$apiBaseUrl/hrm/attendance/today";
   static const String attendanceHistoryEndpoint = "$apiBaseUrl/hrm/attendance/history";
+  static const String attendanceSyncEndpoint = "$apiBaseUrl/hrm/attendance/sync";
+  static const String attendanceReportEndpoint = "$apiBaseUrl/hrm/attendance/report";
   static const String attendanceEventsEndpoint = "$v1BaseUrl/attendance/events";
 
   /// 4. Tasks Endpoints (Branch Tasks & Completions)
   static const String tasksTodayEndpoint = "$apiBaseUrl/hrm/tasks/today";
   static const String tasksToggleCompleteEndpoint = "$apiBaseUrl/hrm/tasks/toggle-complete";
   static const String tasksCompleteEndpoint = "$apiBaseUrl/hrm/tasks/complete";
+  static const String tasksAdditionalEndpoint = "$apiBaseUrl/hrm/tasks/additional";
+  static const String tasksCreateAdditionalEndpoint = "$apiBaseUrl/hrm/tasks/create-additional";
   static const String tasksHistoryEndpoint = "$apiBaseUrl/hrm/tasks/history";
+  static const String tasksReportEndpoint = "$apiBaseUrl/hrm/tasks/report";
   static const String managerTaskCompletionsEndpoint = "$apiBaseUrl/hrm/manager/tasks/completions";
   static const String managerTaskReviewEndpoint = "$apiBaseUrl/hrm/manager/tasks/review";
+  static const String managerTasksReportEndpoint = "$apiBaseUrl/hrm/manager/tasks/report";
   static const String tasksEndpoint = "$v1BaseUrl/tasks";
 
   /// 5. Targets Endpoints (Performly Sales Targets & KPIs)
@@ -57,7 +63,11 @@ class ApiConstants {
   /// 6. Manager Panel Endpoints
   static const String managerEmployeeOptionsEndpoint = "$apiBaseUrl/hrm/manager/employees/options";
   static const String managerEmployeesEndpoint = "$apiBaseUrl/hrm/manager/employees";
+  static const String managerDepartmentsEndpoint = "$apiBaseUrl/hrm/manager/employees/departments";
+  static const String managerDesignationsEndpoint = "$apiBaseUrl/hrm/manager/employees/designations";
   static const String managerAttendancesEndpoint = "$apiBaseUrl/hrm/manager/attendances";
+  static const String managerAttendanceOverviewEndpoint = "$apiBaseUrl/hrm/manager/attendances/overview";
+  static const String managerAttendanceReportEndpoint = "$apiBaseUrl/hrm/manager/attendances/report";
   static const String managerLeavesEndpoint = "$apiBaseUrl/hrm/manager/leaves";
   static const String managerBranchTasksEndpoint = "$apiBaseUrl/hrm/manager/tasks";
   static const String managerTargetsEndpoint = "$apiBaseUrl/performly/manager/targets";

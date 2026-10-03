@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
-import 'package:auth_ui_app/services/hrm_api_service.dart';
-import 'package:auth_ui_app/services/offline_storage_service.dart';
+import 'package:auth_ui_app/core/database/app_database.dart';
+import 'package:auth_ui_app/core/sync/sync_engine.dart';
+import 'package:auth_ui_app/services/auth_service.dart';
+import 'package:auth_ui_app/services/connectivity_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
 class SyncController extends GetxController {
@@ -19,150 +21,139 @@ class SyncController extends GetxController {
   final RxInt pendingCount = 0.obs;
   final RxString lastSyncedAt = "Just now".obs;
 
-  Timer? _periodicSyncTimer;
+  StreamSubscription<int>? _pendingSubscription;
+  StreamSubscription<List<OfflineOperation>>? _operationsSubscription;
+  final RxList<OfflineOperation> allOperations = <OfflineOperation>[].obs;
 
   @override
   void onInit() {
     super.onInit();
-    refreshPendingCount();
-    // Start periodic sync timer
-    _periodicSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      if (isOnline.value && pendingCount.value > 0 && !isSyncing.value) {
-        syncPendingActions();
-      }
-    });
+    _bindConnectivity();
+    _bindDatabaseStream();
+    _bindSyncEngineState();
   }
 
   @override
   void onClose() {
-    _periodicSyncTimer?.cancel();
+    _pendingSubscription?.cancel();
+    _operationsSubscription?.cancel();
     super.onClose();
   }
 
-  /// Update pending queue count from local storage
-  void refreshPendingCount() {
-    pendingCount.value = OfflineStorageService.instance.getPendingCount();
+  void _bindConnectivity() {
+    // React to connectivity changes
+    ConnectivityService.instance.apiReachableNotifier.addListener(_updateOnlineStatus);
+    ConnectivityService.instance.networkAvailableNotifier.addListener(_updateOnlineStatus);
+    ConnectivityService.instance.manualOfflineModeNotifier.addListener(_updateOnlineStatus);
+    _updateOnlineStatus();
   }
 
-  /// Toggle manual online/offline simulation mode for demo/testing
+  void _updateOnlineStatus() {
+    isOnline.value = ConnectivityService.instance.isOnline;
+  }
+
+  void _bindSyncEngineState() {
+    SyncEngine.instance.isSyncingNotifier.addListener(() {
+      isSyncing.value = SyncEngine.instance.isSyncingNotifier.value;
+    });
+
+    SyncEngine.instance.lastSyncNotifier.addListener(() {
+      final dt = SyncEngine.instance.lastSyncNotifier.value;
+      if (dt != null) {
+        lastSyncedAt.value = DateFormat('hh:mm a').format(dt);
+      }
+    });
+  }
+
+  void _bindDatabaseStream() {
+    final tenantId = AuthService.instance.getCurrentTenantId();
+
+    // Watch pending count
+    _pendingSubscription = AppDatabase.instance.offlineOperationsDao
+        .watchPendingCount(tenantId)
+        .listen((count) {
+      pendingCount.value = count;
+    });
+
+    // Watch all operations for Sync Center screen
+    _operationsSubscription = AppDatabase.instance.offlineOperationsDao
+        .watchOperationsForTenant(tenantId)
+        .listen((ops) {
+      allOperations.assignAll(ops);
+    });
+  }
+
+  /// Re-bind streams when tenant or user changes
+  void rebindTenant() {
+    _pendingSubscription?.cancel();
+    _operationsSubscription?.cancel();
+    _bindDatabaseStream();
+  }
+
+  /// Toggle manual offline mode simulation
   void toggleOfflineMode() {
-    isOnline.value = !isOnline.value;
+    ConnectivityService.instance.toggleManualOffline();
+    _updateOnlineStatus();
     if (isOnline.value) {
       THelperFunctions.showSnackBar("Network restored. Syncing offline queue...");
-      syncPendingActions();
+      SyncEngine.instance.processQueue();
     } else {
-      THelperFunctions.showSnackBar("App switched to Offline Mode. Actions will be queued locally.");
+      THelperFunctions.showSnackBar("App switched to Offline Mode. Actions will be queued locally in SQLite.");
     }
   }
 
-  /// Queue an action to be saved locally & synced when online
+  /// Queue an action into the SQLite Drift queue
   Future<void> enqueueAction({
     required String actionType,
     required Map<String, dynamic> payload,
+    String? entityType,
+    String? entityLocalId,
+    int? entityServerId,
     String? userMessage,
+    int priority = 0,
   }) async {
-    await OfflineStorageService.instance.enqueueAction(actionType, payload);
-    refreshPendingCount();
+    await SyncEngine.instance.enqueueOperation(
+      operationType: actionType,
+      entityType: entityType ?? 'general',
+      payload: payload,
+      entityLocalId: entityLocalId,
+      entityServerId: entityServerId,
+      priority: priority,
+    );
 
     if (userMessage != null && userMessage.isNotEmpty) {
       if (!isOnline.value) {
-        THelperFunctions.showSnackBar("$userMessage (Saved Offline)");
+        THelperFunctions.showSnackBar("$userMessage (Saved in Local SQLite Queue)");
       } else {
         THelperFunctions.showSnackBar(userMessage);
       }
     }
-
-    if (isOnline.value && !isSyncing.value) {
-      syncPendingActions();
-    }
   }
 
-  /// Sync all pending actions with backend API endpoints
+  /// Trigger sync now
   Future<void> syncPendingActions() async {
     if (!isOnline.value) {
       THelperFunctions.showSnackBar("Cannot sync while offline.");
       return;
     }
+    await SyncEngine.instance.processQueue();
+  }
 
-    final pending = OfflineStorageService.instance.getPendingActions();
-    if (pending.isEmpty) {
-      refreshPendingCount();
-      return;
+  /// Retry all failed operations
+  Future<void> retryAllFailed() async {
+    await SyncEngine.instance.retryAllFailed();
+  }
+
+  /// Check connectivity and trigger sync
+  Future<void> checkConnectivityAndSync() async {
+    await ConnectivityService.instance.checkInternetAccess();
+    if (isOnline.value) {
+      await SyncEngine.instance.processQueue();
     }
+  }
 
-    isSyncing.value = true;
-    int successCount = 0;
-    int failCount = 0;
-
-    for (final action in pending) {
-      try {
-        if (kDebugMode) {
-          print("Syncing action ${action.id} [${action.actionType}] with payload ${action.payload}...");
-        }
-
-        bool syncedSuccessfully = false;
-
-        switch (action.actionType) {
-          case 'attendance_checkin':
-            final lat = (action.payload['latitude'] as num?)?.toDouble() ?? 23.7808875;
-            final lng = (action.payload['longitude'] as num?)?.toDouble() ?? 90.4192723;
-            final acc = (action.payload['accuracy'] as num?)?.toDouble();
-            final res = await HrmApiService.instance.clockIn(latitude: lat, longitude: lng, accuracy: acc);
-            syncedSuccessfully = res.isSuccess;
-            break;
-
-          case 'attendance_checkout':
-            final lat = (action.payload['latitude'] as num?)?.toDouble() ?? 23.7808875;
-            final lng = (action.payload['longitude'] as num?)?.toDouble() ?? 90.4192723;
-            final acc = (action.payload['accuracy'] as num?)?.toDouble();
-            final res = await HrmApiService.instance.clockOut(latitude: lat, longitude: lng, accuracy: acc);
-            syncedSuccessfully = res.isSuccess;
-            break;
-
-          case 'task_toggle':
-          case 'task_complete':
-            final taskId = action.payload['branch_task_id'] is int
-                ? action.payload['branch_task_id']
-                : int.tryParse(action.payload['branch_task_id']?.toString() ?? '0') ?? 0;
-            final notes = action.payload['notes']?.toString();
-            final res = await HrmApiService.instance.toggleTaskComplete(branchTaskId: taskId, notes: notes);
-            syncedSuccessfully = res.isSuccess;
-            break;
-
-          default:
-            // Generic or fallback action
-            syncedSuccessfully = true;
-            break;
-        }
-
-        if (syncedSuccessfully) {
-          await OfflineStorageService.instance.markActionSynced(action.id);
-          successCount++;
-        } else {
-          failCount++;
-          await OfflineStorageService.instance.markActionFailed(action.id, "Server returned error or invalid status");
-        }
-      } catch (e) {
-        failCount++;
-        await OfflineStorageService.instance.markActionFailed(action.id, e.toString());
-        if (kDebugMode) {
-          print("Failed to sync action ${action.id}: $e");
-        }
-      }
-    }
-
-    // Clean up completed actions from storage
-    await OfflineStorageService.instance.clearSyncedActions();
-    refreshPendingCount();
-
-    isSyncing.value = false;
-    final now = DateTime.now();
-    lastSyncedAt.value = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-
-    if (successCount > 0) {
-      THelperFunctions.showSnackBar("Successfully synced $successCount offline actions with server!");
-    } else if (failCount > 0) {
-      THelperFunctions.showSnackBar("Failed to sync $failCount actions. Will retry shortly.");
-    }
+  /// Cancel specific operation
+  Future<void> cancelOperation(String id) async {
+    await SyncEngine.instance.cancelOperation(id);
   }
 }

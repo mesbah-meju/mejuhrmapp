@@ -98,6 +98,64 @@ class ManagerEmployeeController extends GetxController {
     fetchEmployees();
   }
 
+  /// Generated Employee ID from server options
+  String get generatedEmployeeId => options.value?.generatedEmployeeId ?? '';
+
+  /// Cascading: Filter departments for a specific branch
+  List<DepartmentOption> getDepartmentsForBranch(int? branchId) {
+    final allDepts = options.value?.departments ?? [];
+    if (branchId == null || branchId == 0) {
+      return allDepts;
+    }
+    return allDepts.where((d) => d.branchId == null || d.branchId == branchId).toList();
+  }
+
+  /// Cascading: Filter designations for a specific department and branch
+  List<DesignationOption> getDesignationsForDepartment(int? deptId, {int? branchId}) {
+    final allDesigs = options.value?.designations ?? [];
+    if (deptId == null || deptId == 0) {
+      if (branchId != null && branchId != 0) {
+        return allDesigs.where((d) => d.branchId == null || d.branchId == branchId).toList();
+      }
+      return allDesigs;
+    }
+    return allDesigs.where((d) => d.departmentId == null || d.departmentId == deptId).toList();
+  }
+
+  /// Fetch full details for a single employee
+  Future<ManagerEmployeeModel?> fetchEmployeeDetail(int id) async {
+    try {
+      final res = await _apiService.getManagerEmployee(id);
+      if (res.isSuccess && res.data != null) {
+        return res.data;
+      }
+    } catch (e) {
+      debugPrint("Error fetching employee detail: $e");
+    }
+    return null;
+  }
+
+  /// Delete an uploaded employee document
+  Future<bool> deleteDocument(int employeeId, int documentId) async {
+    isSubmitting.value = true;
+    try {
+      final res = await _apiService.deleteEmployeeDocument(employeeId, documentId);
+      isSubmitting.value = false;
+      if (res.isSuccess) {
+        THelperFunctions.showSnackBar("Document removed successfully.");
+        fetchEmployees();
+        return true;
+      } else {
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Failed to delete document.");
+        return false;
+      }
+    } catch (e) {
+      isSubmitting.value = false;
+      THelperFunctions.showSnackBar("Error deleting document: $e");
+      return false;
+    }
+  }
+
   /// Create / Add New Staff
   Future<bool> createEmployee(Map<String, dynamic> data) async {
     isSubmitting.value = true;
@@ -106,12 +164,27 @@ class ManagerEmployeeController extends GetxController {
       isSubmitting.value = false;
 
       if (res.isSuccess) {
-        THelperFunctions.showSnackBar(res.message ?? "Employee created successfully!");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Employee created successfully!");
         fetchEmployees();
         fetchOptions(); // update next auto-generated id
         return true;
       } else {
-        THelperFunctions.showSnackBar(res.message ?? "Failed to create employee.");
+        String errorDetail = res.message;
+        if (res.errors != null && res.errors is Map) {
+          final errorMap = res.errors as Map;
+          final errorLines = <String>[];
+          errorMap.forEach((key, val) {
+            if (val is List) {
+              errorLines.add(val.join(', '));
+            } else {
+              errorLines.add(val.toString());
+            }
+          });
+          if (errorLines.isNotEmpty) {
+            errorDetail = errorLines.join('\n');
+          }
+        }
+        THelperFunctions.showSnackBar(errorDetail.isNotEmpty ? errorDetail : "Failed to create employee.");
         return false;
       }
     } catch (e) {
@@ -129,11 +202,11 @@ class ManagerEmployeeController extends GetxController {
       isSubmitting.value = false;
 
       if (res.isSuccess) {
-        THelperFunctions.showSnackBar(res.message ?? "Employee updated successfully!");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Employee updated successfully!");
         fetchEmployees();
         return true;
       } else {
-        THelperFunctions.showSnackBar(res.message ?? "Failed to update employee.");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Failed to update employee.");
         return false;
       }
     } catch (e) {
@@ -151,11 +224,11 @@ class ManagerEmployeeController extends GetxController {
       isSubmitting.value = false;
 
       if (res.isSuccess) {
-        THelperFunctions.showSnackBar(res.message ?? "Status changed successfully!");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Status changed successfully!");
         fetchEmployees();
         return true;
       } else {
-        THelperFunctions.showSnackBar(res.message ?? "Failed to toggle status.");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Failed to toggle status.");
         return false;
       }
     } catch (e) {
@@ -177,10 +250,10 @@ class ManagerEmployeeController extends GetxController {
       isSubmitting.value = false;
 
       if (res.isSuccess) {
-        THelperFunctions.showSnackBar(res.message ?? "Password reset successfully!");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Password reset successfully!");
         return true;
       } else {
-        THelperFunctions.showSnackBar(res.message ?? "Failed to reset password.");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Failed to reset password.");
         return false;
       }
     } catch (e) {
@@ -198,11 +271,11 @@ class ManagerEmployeeController extends GetxController {
       isSubmitting.value = false;
 
       if (res.isSuccess) {
-        THelperFunctions.showSnackBar(res.message ?? "Employee deleted successfully!");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Employee deleted successfully!");
         fetchEmployees();
         return true;
       } else {
-        THelperFunctions.showSnackBar(res.message ?? "Failed to delete employee.");
+        THelperFunctions.showSnackBar(res.message.isNotEmpty ? res.message : "Failed to delete employee.");
         return false;
       }
     } catch (e) {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -38,16 +40,16 @@ class _DevicesSessionsScreenState extends State<DevicesSessionsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        title: const Text(
-          "Devices & Sessions",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Devices & Sessions",
+              onBack: () => Get.back(),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,6 +115,10 @@ class _DevicesSessionsScreenState extends State<DevicesSessionsScreen> {
                   });
                   THelperFunctions.showSnackBar("All other active sessions have been revoked.");
                 },
+              ),
+            ),
+          ],
+        ),
               ),
             ),
           ],

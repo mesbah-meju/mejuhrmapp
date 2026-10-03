@@ -19,12 +19,16 @@ class ManagerTaskController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isReviewing = false.obs;
   final RxBool isLoadingBranchTasks = false.obs;
+  final RxBool isLoadingReport = false.obs;
   final RxBool isSubmittingTask = false.obs;
 
   final RxList<ManagerTaskCompletionModel> completions = <ManagerTaskCompletionModel>[].obs;
   final RxList<ManagerBranchTaskCrudModel> branchTasks = <ManagerBranchTaskCrudModel>[].obs;
+  final Rx<ManagerTaskReportResponse?> report = Rx<ManagerTaskReportResponse?>(null);
   final RxString selectedStatusFilter = 'All'.obs; // 'All', 'completed', 'approved', 'rejected'
   final Rx<DateTime?> selectedDate = Rx<DateTime?>(null);
+  final RxInt selectedReportMonth = DateTime.now().month.obs;
+  final RxInt selectedReportYear = DateTime.now().year.obs;
 
   final RxInt pendingCount = 0.obs;
   final RxInt approvedCount = 0.obs;
@@ -35,13 +39,39 @@ class ManagerTaskController extends GetxController {
     super.onInit();
     fetchCompletions();
     fetchBranchTasks();
+    fetchReport();
+  }
+
+  /// 0. Fetch Manager Task Report & Analytics
+  Future<void> fetchReport({int? month, int? year, int? branchId, int? departmentId, int? employeeId}) async {
+    isLoadingReport.value = true;
+    try {
+      final m = month ?? selectedReportMonth.value;
+      final y = year ?? selectedReportYear.value;
+      selectedReportMonth.value = m;
+      selectedReportYear.value = y;
+
+      final res = await HrmApiService.instance.managerGetTasksReport(
+        month: m,
+        year: y,
+        branchId: branchId,
+        departmentId: departmentId,
+        employeeId: employeeId,
+      );
+      if (res.isSuccess && res.data != null) {
+        report.value = res.data;
+      }
+    } catch (_) {
+    } finally {
+      isLoadingReport.value = false;
+    }
   }
 
   /// 1. Fetch Task Completions for Manager Review
   Future<void> fetchCompletions({String? date, String? status}) async {
     isLoading.value = true;
     try {
-      final dateStr = date ?? (selectedDate.value != null ? selectedDate.value!.toIso8601String().split('T').first : null);
+      final dateStr = date ?? selectedDate.value?.toIso8601String().split('T').first;
       final stat = status ?? (selectedStatusFilter.value != 'All' ? selectedStatusFilter.value.toLowerCase() : null);
 
       final response = await HrmApiService.instance.getManagerTaskCompletions(
@@ -72,7 +102,7 @@ class ManagerTaskController extends GetxController {
 
   void setDateFilter(DateTime? date) {
     selectedDate.value = date;
-    fetchCompletions(date: date != null ? date.toIso8601String().split('T').first : null);
+    fetchCompletions(date: date?.toIso8601String().split('T').first);
   }
 
   /// 2. Manager Approve Task

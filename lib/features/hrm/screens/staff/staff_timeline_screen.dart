@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/services/timeline_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -33,31 +33,21 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1E293B)),
-          onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          "Employee Activity Timeline",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Iconsax.refresh, size: 20, color: Color(0xFF64748B)),
-            onPressed: () {
-              _loadEvents();
-              THelperFunctions.showSnackBar("Timeline updated");
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Filter Row
-          _buildFilterBar(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Activity Timeline",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: () {
+                  _loadEvents();
+                  THelperFunctions.showSnackBar("Timeline updated");
+                },
+              ),
+            ),
+            // Filter Row
+            _buildFilterBar(),
 
           // Vertical Timeline List
           Expanded(
@@ -76,6 +66,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/sync/global_sync_indicator.dart';
 import 'package:auth_ui_app/features/authentication/screens/login/login.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/screens/common/me_screen.dart';
@@ -240,6 +241,8 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
           Row(
             children: [
+              const GlobalSyncIndicator(),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB), size: 22),
                 tooltip: "Refresh Dashboard",
