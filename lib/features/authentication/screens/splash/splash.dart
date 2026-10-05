@@ -149,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 6),
 
                   const Text(
-                    "SALES • Track • GROWTH",
+                    "SALES • TRACK • GROWTH",
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
