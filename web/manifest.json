@@ -1,6 +1,6 @@
 {
-    "name": "auth_ui_app",
-    "short_name": "auth_ui_app",
+    "name": "Meju HRM",
+    "short_name": "Meju HRM",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
