@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/services/payroll_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -66,42 +67,19 @@ class _ManagerPayrollScreenState extends State<ManagerPayrollScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: widget.onBack != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                onPressed: widget.onBack,
-              )
-            : null,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Payroll & Salary Disbursements",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-            ),
-            Text(
-              "Pending Salary Payable & Calculation Engine",
-              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Iconsax.refresh, color: Color(0xFF2563EB), size: 20),
-            tooltip: "Reset Payroll Ledger",
-            onPressed: () {
-              _payrollService.resetToDefault();
-              THelperFunctions.showSnackBar("Payroll ledger reset to baseline reference data.");
-            },
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
+            AppPageHeader(
+              title: "Payroll Disbursements",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: () {
+                  _payrollService.resetToDefault();
+                  THelperFunctions.showSnackBar("Payroll ledger reset to baseline reference data.");
+                },
+              ),
+            ),
             // KPI Summary Header Banner
             _buildKpiSummary(
               totalPending: totalPending,

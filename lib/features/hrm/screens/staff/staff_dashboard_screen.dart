@@ -4,14 +4,16 @@ import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 
 import 'package:get/get.dart';
-import 'package:auth_ui_app/common/widgets/connectivity_status_banner.dart';
+import 'package:auth_ui_app/common/widgets/sync/global_sync_indicator.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/screens/common/me_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/common/notifications_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_attendance_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_payroll_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_targets_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_tasks_screen.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
+import 'package:auth_ui_app/services/sync_controller.dart';
 
 class HrmDashboardScreen extends StatefulWidget {
   const HrmDashboardScreen({super.key});
@@ -23,9 +25,44 @@ class HrmDashboardScreen extends StatefulWidget {
 class _HrmDashboardScreenState extends State<HrmDashboardScreen>
     with TickerProviderStateMixin {
   int _currentNavIndex = 0;
-  bool _isCheckedIn = false;
-  String _selectedPerformancePeriod = 'This Month';
   String _selectedEarningsPeriod = 'This Month';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyInitialConnectivityStatus();
+    });
+  }
+
+  void _notifyInitialConnectivityStatus() {
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      final isOnline = SyncController.instance.isOnline.value;
+      if (!isOnline) {
+        Get.rawSnackbar(
+          messageText: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wifi_off_rounded, size: 16, color: Color(0xFFDC2626)),
+              SizedBox(width: 8),
+              Text(
+                "Offline • Local mode active",
+                style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 12.5),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFFEF2F2),
+          borderRadius: 12,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
+          borderColor: const Color(0xFFFECACA),
+          borderWidth: 1,
+        );
+      }
+    });
+  }
 
   // Daily Tasks State
   final List<Map<String, dynamic>> _tasks = [
@@ -95,9 +132,6 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
         children: [
           // Top App Bar / Header
           _buildHeader(),
-
-          // Connectivity & Offline Sync Status Banner
-          const ConnectivityStatusBanner(),
 
           // Main Scrollable Dashboard Content
           Expanded(
@@ -188,22 +222,34 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
             ),
           ),
 
-          // Notification bell
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
+          // Global Sync Indicator
+          const GlobalSyncIndicator(),
+          const SizedBox(width: 8),
+
+          // Notification bell (Clean icon without bg, border or shadow)
+          IconButton(
+            onPressed: () => Get.to(() => const NotificationsScreen()),
+            icon: Stack(
+              clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.notifications_outlined, size: 20, color: Color(0xFF0F172A)),
-                Positioned(top: 9, right: 9, child: Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle))),
+                const Icon(Icons.notifications_outlined, size: 24, color: Color(0xFF0F172A)),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDC2626),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ],
             ),
+            splashRadius: 22,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -231,105 +277,81 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Card Header (Filter removed)
+          const Row(
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 24),
-                  SizedBox(width: 8),
-                  Text(
-                    "Performance Overview",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-              _buildDropdownFilter(
-                _selectedPerformancePeriod,
-                (val) => setState(() => _selectedPerformancePeriod = val!),
+              Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 24),
+              SizedBox(width: 8),
+              Text(
+                "Performance Overview",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Layout: Left Chart, Right 2x2 Metric Grid
+          // Full-width Performance Area Line Chart
+          SizedBox(
+            width: double.infinity,
+            height: 155,
+            child: CustomPaint(
+              painter: _PerformanceChartPainter(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Small Metric Boxes Below the Graph (2x2 Grid)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left: Performance Area Line Chart
               Expanded(
-                flex: 11,
-                child: SizedBox(
-                  height: 155,
-                  child: CustomPaint(
-                    painter: _PerformanceChartPainter(),
-                  ),
+                child: _buildMetricTile(
+                  bgColor: const Color(0xFFECFDF5),
+                  iconColor: const Color(0xFF059669),
+                  icon: Iconsax.radar,
+                  value: "82% ↗",
+                  valueColor: const Color(0xFF059669),
+                  label: "Overall Performance",
                 ),
               ),
-              const SizedBox(width: 12),
-
-              // Right: 2x2 Metric Badges
+              const SizedBox(width: 10),
               Expanded(
-                flex: 9,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricTile(
-                            bgColor: const Color(0xFFECFDF5),
-                            iconColor: const Color(0xFF059669),
-                            icon: Iconsax.radar,
-                            value: "82% ↗",
-                            valueColor: const Color(0xFF059669),
-                            label: "Overall\nPerformance",
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildMetricTile(
-                            bgColor: const Color(0xFFEFF6FF),
-                            iconColor: const Color(0xFF2563EB),
-                            icon: Icons.check_circle_rounded,
-                            value: "18 / 22",
-                            valueColor: const Color(0xFF0F172A),
-                            label: "Tasks\nCompleted",
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricTile(
-                            bgColor: const Color(0xFFFAF5FF),
-                            iconColor: const Color(0xFF7C3AED),
-                            icon: Icons.bar_chart_rounded,
-                            value: "4 / 5",
-                            valueColor: const Color(0xFF0F172A),
-                            label: "Targets\nAchieved",
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildMetricTile(
-                            bgColor: const Color(0xFFFFFBEB),
-                            iconColor: const Color(0xFFD97706),
-                            icon: Icons.star_rounded,
-                            value: "8.5",
-                            valueColor: const Color(0xFFD97706),
-                            label: "Average\nRating",
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: _buildMetricTile(
+                  bgColor: const Color(0xFFEFF6FF),
+                  iconColor: const Color(0xFF2563EB),
+                  icon: Icons.check_circle_rounded,
+                  value: "18 / 22",
+                  valueColor: const Color(0xFF0F172A),
+                  label: "Tasks Completed",
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  bgColor: const Color(0xFFFAF5FF),
+                  iconColor: const Color(0xFF7C3AED),
+                  icon: Icons.bar_chart_rounded,
+                  value: "4 / 5",
+                  valueColor: const Color(0xFF0F172A),
+                  label: "Targets Achieved",
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricTile(
+                  bgColor: const Color(0xFFFFFBEB),
+                  iconColor: const Color(0xFFD97706),
+                  icon: Icons.star_rounded,
+                  value: "8.5",
+                  valueColor: const Color(0xFFD97706),
+                  label: "Average Rating",
                 ),
               ),
             ],
@@ -348,7 +370,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(14),
@@ -358,13 +380,20 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
         children: [
           Row(
             children: [
-              Icon(icon, color: iconColor, size: 16),
-              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, color: iconColor, size: 15),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   value,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                     color: valueColor,
                   ),
@@ -374,16 +403,16 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               color: Color(0xFF64748B),
               height: 1.2,
               fontWeight: FontWeight.w500,
             ),
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -419,54 +448,57 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
             decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(4)),
           ),
           Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Attendance Header
-          Row(
-            children: [
-              InkWell(
-                onTap: () => setState(() => _currentNavIndex = 2),
-                borderRadius: BorderRadius.circular(10),
-                child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Attendance Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(10),
+                    InkWell(
+                      onTap: () => _setNav(2),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 18),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "Attendance",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 18),
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      "Attendance",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
+                    const SizedBox(width: 8),
 
-              // Alert Badge & Button
-              Expanded(
-                child: Obx(() {
-                  final status = AttendanceController.instance.todayStatus.value;
-                  final isClocked = status?.isClockedIn ?? false;
-                  final isBusy = AttendanceController.instance.isClocking.value;
+                    // Attendance Status Badge (Linked to Attendance Screen)
+                    Obx(() {
+                      final status = AttendanceController.instance.todayStatus.value;
+                      final isClocked = status?.isClockedIn ?? false;
 
-                  return Row(
-                    children: [
-                      Expanded(
+                      return InkWell(
+                        onTap: () => _setNav(2),
+                        borderRadius: BorderRadius.circular(20),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isClocked ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isClocked ? const Color(0xFF86EFAC) : const Color(0xFFFECACA),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -483,121 +515,114 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                                   size: 10,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  isClocked ? "Checked In (${status?.clockIn ?? ''})" : "You haven't checked in!",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isClocked ? const Color(0xFF065F46) : const Color(0xFFDC2626),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 5),
+                              Text(
+                                isClocked ? "Checked In (${status?.clockIn ?? ''})" : "Not Marked",
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isClocked ? const Color(0xFF065F46) : const Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w700,
                                 ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 14,
+                                color: isClocked ? const Color(0xFF065F46) : const Color(0xFFDC2626),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: isBusy ? null : AttendanceController.instance.toggleClockInOut,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isClocked ? const Color(0xFFDC2626) : const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                          minimumSize: const Size(0, 34),
-                        ),
-                        child: isBusy
-                            ? const SizedBox(
+                      );
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Days & Status Row
+                Row(
+                  children: [
+                    // Today Status
+                    InkWell(
+                      onTap: () => _setNav(2),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Obx(() {
+                        final status = AttendanceController.instance.todayStatus.value;
+                        final isClocked = status?.isClockedIn ?? false;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Today",
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isClocked ? "Present" : "Not Marked",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: isClocked ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Day Pills (Horizontally scrollable to avoid overflow on small screens)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildDayAttendancePill(
+                              day: "Mon",
+                              date: "Mar 17",
+                              statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildDayAttendancePill(
+                              day: "Tue",
+                              date: "Mar 18",
+                              statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildDayAttendancePill(
+                              day: "Wed",
+                              date: "Mar 19",
+                              statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildDayAttendancePill(
+                              day: "Thu",
+                              date: "Mar 20",
+                              statusIcon: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildDayAttendancePill(
+                              day: "Fri",
+                              date: "Mar 21",
+                              statusIcon: Container(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)),
-                              )
-                            : Text(
-                                isClocked ? "Clock Out" : "Clock In",
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF94A3B8),
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Days & Status Row
-          Row(
-            children: [
-              // Today Status
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Today",
-                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _isCheckedIn ? "Present" : "Not Marked",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: _isCheckedIn ? const Color(0xFF059669) : const Color(0xFFDC2626),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
-
-              // Day Pills
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildDayAttendancePill(
-                      day: "Mon",
-                      date: "Mar 17",
-                      statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
-                    ),
-                    _buildDayAttendancePill(
-                      day: "Tue",
-                      date: "Mar 18",
-                      statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
-                    ),
-                    _buildDayAttendancePill(
-                      day: "Wed",
-                      date: "Mar 19",
-                      statusIcon: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 16),
-                    ),
-                    _buildDayAttendancePill(
-                      day: "Thu",
-                      date: "Mar 20",
-                      statusIcon: const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 16),
-                    ),
-                    _buildDayAttendancePill(
-                      day: "Fri",
-                      date: "Mar 21",
-                      statusIcon: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF94A3B8),
-                          shape: BoxShape.circle,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
           ),
         ],
       ),
@@ -682,95 +707,99 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                 children: [
                   // Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD97706),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Icons.check_box_rounded, color: Colors.white, size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            "Daily Tasks",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          if (!isClocked)
+                      Expanded(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(20),
+                                color: const Color(0xFFD97706),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text(
-                                "Clock in to view",
-                                style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: pendingCount > 0 ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF059669),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      pendingCount > 0 ? Icons.priority_high_rounded : Icons.check,
-                                      color: Colors.white,
-                                      size: 10,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    pendingCount > 0 ? "$pendingCount pending" : "All completed!",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: pendingCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF065F46),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              child: const Icon(Icons.check_box_rounded, color: Colors.white, size: 18),
                             ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () => setState(() => _currentNavIndex = 1),
-                            child: const Row(
-                              children: [
-                                Text(
-                                  "View All",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                            const SizedBox(width: 8),
+                            const Flexible(
+                              child: Text(
+                                "Daily Tasks",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
                                 ),
-                                Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
-                              ],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (!isClocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                        ],
+                          child: const Text(
+                            "Clock in to view",
+                            style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: pendingCount > 0 ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: pendingCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF059669),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  pendingCount > 0 ? Icons.priority_high_rounded : Icons.check,
+                                  color: Colors.white,
+                                  size: 10,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                pendingCount > 0 ? "$pendingCount pending" : "All done!",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: pendingCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF065F46),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => setState(() => _currentNavIndex = 1),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "View All",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0F172A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -919,87 +948,91 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                 children: [
                   // Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      InkWell(
-                        onTap: () => setState(() => _currentNavIndex = 3),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0284C7),
-                                borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _currentNavIndex = 3),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Iconsax.radar, color: Colors.white, size: 18),
                               ),
-                              child: const Icon(Iconsax.radar, color: Colors.white, size: 18),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              "Targets",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          if (pendingCount > 0)
-                            DecoratedBox(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFEE2E2),
-                                borderRadius: BorderRadius.all(Radius.circular(20)),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFFEF4444),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Padding(
-                                        padding: EdgeInsets.all(2),
-                                        child: Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      "$pendingCount logs pending",
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFFDC2626),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(width: 8),
+                              const Flexible(
+                                child: Text(
+                                  "Targets",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () => setState(() => _currentNavIndex = 3),
-                            child: const Row(
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (pendingCount > 0)
+                        DecoratedBox(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
+                                const DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(Icons.priority_high_rounded, color: Colors.white, size: 10),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
                                 Text(
-                                  "View Details",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF0F172A),
+                                  "$pendingCount pending",
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFFDC2626),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
                               ],
                             ),
                           ),
-                        ],
+                        ),
+                      if (pendingCount > 0) const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => setState(() => _currentNavIndex = 3),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "View Details",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0F172A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0F172A)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1151,47 +1184,54 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
             decoration: BoxDecoration(color: const Color(0xFF7C3AED), borderRadius: BorderRadius.circular(4)),
           ),
           Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InkWell(
-                onTap: () => setState(() => _currentNavIndex = 4),
-                borderRadius: BorderRadius.circular(10),
-                child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF7C3AED),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _currentNavIndex = 4),
                         borderRadius: BorderRadius.circular(10),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C3AED),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.savings_rounded, color: Colors.white, size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            const Flexible(
+                              child: Text(
+                                "Earnings & Payments",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF64748B)),
+                          ],
+                        ),
                       ),
-                      child: const Icon(Icons.savings_rounded, color: Colors.white, size: 18),
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      "Earnings & Payments",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                      ),
+                    const SizedBox(width: 8),
+                    _buildDropdownFilter(
+                      _selectedEarningsPeriod,
+                      (val) => setState(() => _selectedEarningsPeriod = val!),
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF64748B)),
                   ],
                 ),
-              ),
-              _buildDropdownFilter(
-                _selectedEarningsPeriod,
-                (val) => setState(() => _selectedEarningsPeriod = val!),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
           // Horizontal Financial Cards
           SingleChildScrollView(

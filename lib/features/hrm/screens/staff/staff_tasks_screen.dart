@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/models/task_model.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_attendance_screen.dart';
@@ -34,11 +35,26 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   // =========================================================================
-  // VIEW 1: TODAY'S BRANCH TASKS (CLOCK-IN GATED)
+  // VIEW 1: TODAY'S BRANCH TASKS (CLOCK-IN GATED & READ-ONLY SUPPORT)
   // =========================================================================
   Widget _buildTodayView() {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      floatingActionButton: Obx(() {
+        final todayRes = controller.todayResponse.value;
+        final canAdd = todayRes?.canAddAdditionalTask ?? false;
+        if (!canAdd) return const SizedBox.shrink();
+
+        return FloatingActionButton.extended(
+          onPressed: () => _showAddAdditionalTaskSheet(),
+          backgroundColor: const Color(0xFF2563EB),
+          icon: const Icon(Icons.add_task_rounded, color: Colors.white, size: 20),
+          label: const Text(
+            "Log Ad-Hoc Task",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+        );
+      }),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: controller.refreshAll,
@@ -48,7 +64,8 @@ class _TasksScreenState extends State<TasksScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Obx(() {
               final todayRes = controller.todayResponse.value;
-              final isClockedIn = todayRes?.isClockedIn ?? AttendanceController.instance.todayStatus.value?.isClockedIn ?? false;
+              final isClockedIn = controller.isActivelyClockedIn;
+              final hasClockedOut = controller.hasClockedOut;
               final tasks = controller.todayTasks;
               final summary = controller.taskSummary.value;
 
@@ -57,9 +74,9 @@ class _TasksScreenState extends State<TasksScreen> {
                 children: [
                   // Top Header
                   _buildTopHeader(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // Segmented Tabs (Today / History)
+                  // Segmented Tabs (Daily Tasks / General Tasks)
                   _buildSegmentedTabs(),
                   const SizedBox(height: 16),
 
@@ -70,15 +87,16 @@ class _TasksScreenState extends State<TasksScreen> {
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  else if (!isClockedIn)
-                    // CLOCK-IN GATING NOTIFICATION & EMPTY STATE
-                    _buildClockInGatedCard(todayRes?.message)
                   else ...[
-                    // Branch Task Summary & Progress Header
-                    if (summary != null) _buildBranchSummaryCard(todayRes, summary),
+                    // Branch Task Summary & Progress Header (Task progress box)
+                    if (summary != null) _buildBranchSummaryCard(todayRes, summary, isClockedIn, hasClockedOut),
+                    const SizedBox(height: 14),
+
+                    // Designed Box: Date, Time & Check-in Status (Positioned below the progress box)
+                    _buildDateTimeStatusCard(isClockedIn, hasClockedOut),
                     const SizedBox(height: 16),
 
-                    // Daily Tasks Section Title
+                    // Daily Tasks Section Title & Action
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -90,7 +108,31 @@ class _TasksScreenState extends State<TasksScreen> {
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        if (summary != null)
+                        if (todayRes?.canAddAdditionalTask == true)
+                          InkWell(
+                            onTap: () => _showAddAdditionalTaskSheet(),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFBFDBFE)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "Ad-Hoc Task",
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else if (summary != null)
                           Text(
                             "${summary.progressPercentage}% Completed",
                             style: const TextStyle(
@@ -110,7 +152,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       ...tasks.map((task) => _buildTaskItemCard(task)),
                   ],
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 80),
                 ],
               );
             }),
@@ -124,92 +166,136 @@ class _TasksScreenState extends State<TasksScreen> {
   // TOP HEADER
   // =========================================================================
   Widget _buildTopHeader() {
-    final todayFormatted = DateFormat('EEEE, dd MMMM').format(DateTime.now());
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            if (widget.onBackToDashboard != null)
-              IconButton(
-                onPressed: widget.onBackToDashboard,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF1E293B)),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              )
-            else
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Iconsax.task_square, size: 20, color: Color(0xFF2563EB)),
-              ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Branch Tasks",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  todayFormatted,
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-        // History Toggle Button
-        InkWell(
-          onTap: () {
-            controller.fetchHistory();
-            setState(() => _activeTabIndex = 2);
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Row(
-              children: [
-                Icon(Iconsax.document_text, size: 15, color: Color(0xFF2563EB)),
-                SizedBox(width: 6),
-                Text(
-                  "History",
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return AppPageHeader(
+      title: "Tasks",
+      padding: EdgeInsets.zero,
+      onBack: widget.onBackToDashboard ?? () => Navigator.of(context).maybePop(),
+      action: AppHeaderActionBadge.history(
+        onTap: () {
+          controller.fetchHistory();
+          setState(() => _activeTabIndex = 2);
+        },
+      ),
     );
   }
 
   // =========================================================================
-  // SEGMENTED TABS
+  // DATE, TIME & CHECK-IN STATUS CARD
+  // =========================================================================
+  Widget _buildDateTimeStatusCard(bool isClockedIn, bool hasClockedOut) {
+    final now = DateTime.now();
+    final dateFormatted = DateFormat('EEEE, dd MMMM yyyy').format(now);
+    final timeFormatted = DateFormat('hh:mm a').format(now);
+
+    final String statusTitle = hasClockedOut
+        ? "Checked Out"
+        : (isClockedIn ? "Checked In" : "Not Checked In");
+
+    final Color badgeColor = hasClockedOut
+        ? const Color(0xFF475569)
+        : (isClockedIn ? const Color(0xFF059669) : const Color(0xFF2563EB));
+    final Color badgeBg = hasClockedOut
+        ? const Color(0xFFF1F5F9)
+        : (isClockedIn ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF));
+    final IconData statusIcon = hasClockedOut
+        ? Icons.check_circle_outline_rounded
+        : (isClockedIn ? Icons.verified_rounded : Icons.lock_clock_rounded);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Iconsax.calendar_1, size: 18, color: Color(0xFF2563EB)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  dateFormatted,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded, size: 11, color: Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      timeFormatted,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Designed Checkin Status Badge (Tappable to check in when not checked in)
+          InkWell(
+            onTap: (!isClockedIn && !hasClockedOut) ? () => Get.to(() => const AttendanceScreen()) : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(statusIcon, size: 12, color: badgeColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    statusTitle,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: badgeColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // SEGMENTED TABS (DAILY TASKS / GENERAL TASKS)
   // =========================================================================
   Widget _buildSegmentedTabs() {
     return Container(
@@ -222,7 +308,6 @@ class _TasksScreenState extends State<TasksScreen> {
         children: [
           _buildTabItem(0, "Daily Tasks"),
           _buildTabItem(1, "General Tasks"),
-          _buildTabItem(2, "Task History"),
         ],
       ),
     );
@@ -233,7 +318,6 @@ class _TasksScreenState extends State<TasksScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (index == 2) controller.fetchHistory();
           setState(() => _activeTabIndex = index);
         },
         child: AnimatedContainer(
@@ -256,7 +340,7 @@ class _TasksScreenState extends State<TasksScreen> {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
               ),
@@ -268,96 +352,33 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   // =========================================================================
-  // CLOCK-IN GATED EMPTY STATE
-  // =========================================================================
-  Widget _buildClockInGatedCard(String? customMessage) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFDBEAFE), width: 2),
-            ),
-            child: const Center(
-              child: Icon(Iconsax.lock, color: Color(0xFF2563EB), size: 30),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            "Clock In Required",
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            customMessage ?? "You must clock in first to access and complete your daily branch tasks.",
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF64748B),
-              height: 1.35,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () => Get.to(() => const AttendanceScreen()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            icon: const Icon(Icons.location_on_rounded, size: 16),
-            label: const Text(
-              "Go to Clock In",
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =========================================================================
   // BRANCH SUMMARY CARD
   // =========================================================================
-  Widget _buildBranchSummaryCard(TodayTasksResponse? response, TaskSummaryModel summary) {
+  Widget _buildBranchSummaryCard(TodayTasksResponse? response, TaskSummaryModel summary, bool isClockedIn, bool hasClockedOut) {
     final branchName = response?.branchName ?? "Assigned Branch";
+    final String shiftTag = hasClockedOut
+        ? "SHIFT ENDED"
+        : (isClockedIn ? "ACTIVE SHIFT" : "PRE-SHIFT (VIEW ONLY)");
+    final Color tagBg = hasClockedOut
+        ? Colors.white.withValues(alpha: 0.2)
+        : (isClockedIn ? const Color(0xFF10B981) : Colors.white.withValues(alpha: 0.25));
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+        gradient: LinearGradient(
+          colors: hasClockedOut
+              ? const [Color(0xFF334155), Color(0xFF475569)]
+              : (isClockedIn
+                  ? const [Color(0xFF1E3A8A), Color(0xFF2563EB)]
+                  : const [Color(0xFF3B82F6), Color(0xFF1D4ED8)]),
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+            color: const Color(0xFF2563EB).withValues(alpha: hasClockedOut ? 0.1 : 0.25),
             blurRadius: 12,
             offset: const Offset(0, 5),
           ),
@@ -376,7 +397,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   Text(
                     branchName,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -386,12 +407,12 @@ class _TasksScreenState extends State<TasksScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: tagBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  "ACTIVE SHIFT",
-                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Colors.white),
+                child: Text(
+                  shiftTag,
+                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Colors.white),
                 ),
               ),
             ],
@@ -435,6 +456,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final isApproved = task.status == 'approved';
     final isRejected = task.status == 'rejected';
     final isByOther = task.completedByOther;
+    final isAdditional = task.isAdditionalTask;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -466,7 +488,13 @@ class _TasksScreenState extends State<TasksScreen> {
             children: [
               // Interactive Checkbox / Status Circle
               GestureDetector(
-                onTap: task.canToggle ? () => _showTaskCompletionSheet(task) : null,
+                onTap: () {
+                  if (task.canToggle) {
+                    _showTaskCompletionSheet(task);
+                  } else {
+                    _showRestrictedActionNotice(task);
+                  }
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   width: 26,
@@ -480,41 +508,64 @@ class _TasksScreenState extends State<TasksScreen> {
                         : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isDone ? Colors.transparent : const Color(0xFFCBD5E1),
+                      color: isDone
+                          ? Colors.transparent
+                          : (task.canToggle ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0)),
                       width: 2,
                     ),
                   ),
                   child: isDone
                       ? const Icon(Icons.check, size: 16, color: Colors.white)
-                      : null,
+                      : (!task.canToggle ? const Icon(Icons.lock, size: 12, color: Color(0xFF94A3B8)) : null),
                 ),
               ),
               const SizedBox(width: 12),
 
               // Task Title & Description
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.taskName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: isDone ? const Color(0xFF475569) : const Color(0xFF0F172A),
-                        decoration: isDone ? TextDecoration.lineThrough : null,
+                child: GestureDetector(
+                  onTap: () {
+                    if (task.canToggle) {
+                      _showTaskCompletionSheet(task);
+                    } else {
+                      _showRestrictedActionNotice(task);
+                    }
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              task.taskName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: isDone ? const Color(0xFF475569) : const Color(0xFF0F172A),
+                                decoration: isDone ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                          ),
+                          if (isAdditional) ...[
+                            const SizedBox(width: 6),
+                            _buildBadge("Ad-Hoc", const Color(0xFF7C3AED), const Color(0xFFF3E8FF)),
+                          ],
+                        ],
                       ),
-                    ),
-                    if (task.description != null && task.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        task.description!,
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.3),
-                      ),
+                      if (task.description != null && task.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          task.description!,
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.3),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
+
+              const SizedBox(width: 8),
 
               // Status Badges
               if (isApproved)
@@ -522,7 +573,7 @@ class _TasksScreenState extends State<TasksScreen> {
               else if (isRejected)
                 _buildBadge("Rejected", const Color(0xFFDC2626), const Color(0xFFFEE2E2))
               else if (isByOther)
-                _buildBadge("Done by ${task.completedByName ?? 'Other'}", const Color(0xFF64748B), const Color(0xFFF1F5F9))
+                _buildBadge("By ${task.completedByName ?? 'Other'}", const Color(0xFF64748B), const Color(0xFFF1F5F9))
               else if (isDone)
                 _buildBadge("Completed", const Color(0xFF2563EB), const Color(0xFFEFF6FF)),
             ],
@@ -590,6 +641,31 @@ class _TasksScreenState extends State<TasksScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  void _showRestrictedActionNotice(BranchTaskModel task) {
+    String message = "This task cannot be modified right now.";
+
+    if (controller.hasClockedOut) {
+      message = "You have checked out for today. Tasks cannot be completed after check out.";
+    } else if (!controller.isActivelyClockedIn) {
+      message = "You must check in before you can complete daily tasks.";
+    } else if (task.completedByOther) {
+      message = "This task has already been completed today by ${task.completedByName ?? 'another staff member'}.";
+    } else if (task.status == 'approved') {
+      message = "This task has already been verified and approved by management and cannot be reverted.";
+    }
+
+    Get.snackbar(
+      "Action Restricted",
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF1E293B),
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 3),
+      icon: const Icon(Icons.lock_outline_rounded, color: Colors.white),
     );
   }
 
@@ -691,6 +767,203 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  // =========================================================================
+  // CREATE ADDITIONAL / AD-HOC TASK BOTTOM SHEET
+  // =========================================================================
+  void _showAddAdditionalTaskSheet() {
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    final notesController = TextEditingController();
+    bool isCompleted = true;
+
+    Get.bottomSheet(
+      StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.add_task_rounded, color: Color(0xFF2563EB), size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          "Log Ad-Hoc Task",
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  "Log extra duty or unscheduled task during your active shift.",
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 16),
+
+                const Text(
+                  "Task Title *",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    hintText: "e.g. Emergency Inventory Restock",
+                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                const Text(
+                  "Description (Optional)",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: descController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: "e.g. Unloaded supply truck and organized storage...",
+                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                const Text(
+                  "Notes / Outcome (Optional)",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: notesController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: "e.g. All 45 boxes accounted for and logged...",
+                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Mark Completed Switch
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Mark as Completed",
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          ),
+                          Text(
+                            "Immediately log this task as done",
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                      Switch(
+                        value: isCompleted,
+                        activeTrackColor: const Color(0xFF2563EB),
+                        activeThumbColor: Colors.white,
+                        onChanged: (val) => setSheetState(() => isCompleted = val),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                Obx(() => SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: controller.isCreatingAdditionalTask.value
+                            ? null
+                            : () async {
+                                final title = titleController.text.trim();
+                                if (title.isEmpty) {
+                                  Get.snackbar(
+                                    "Required Field",
+                                    "Please provide a title for the ad-hoc task.",
+                                    snackPosition: SnackPosition.BOTTOM,
+                                    backgroundColor: Colors.redAccent,
+                                    colorText: Colors.white,
+                                  );
+                                  return;
+                                }
+
+                                final ok = await controller.createAdditionalTask(
+                                  taskName: title,
+                                  description: descController.text.trim().isEmpty ? null : descController.text.trim(),
+                                  notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                                  isCompleted: isCompleted,
+                                );
+
+                                if (ok) Get.back();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: controller.isCreatingAdditionalTask.value
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text(
+                                "Submit Ad-Hoc Task",
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
   Widget _buildEmptyTasksCard() {
     return Container(
       width: double.infinity,
@@ -733,6 +1006,8 @@ class _TasksScreenState extends State<TasksScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Obx(() {
               final items = controller.filteredHistory;
+              final report = controller.staffReport.value;
+              final summary = report?.summary;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,6 +1019,12 @@ class _TasksScreenState extends State<TasksScreen> {
                   // Month Selector
                   _buildMonthSelector(),
                   const SizedBox(height: 14),
+
+                  // Monthly Performance Analytics Overview Cards
+                  if (summary != null) ...[
+                    _buildStaffPerformanceSummaryCards(summary),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Filter Chips (All, Completed, Approved, Rejected)
                   _buildHistoryFilterChips(),
@@ -848,6 +1129,99 @@ class _TasksScreenState extends State<TasksScreen> {
             constraints: const BoxConstraints(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStaffPerformanceSummaryCards(StaffTaskReportSummaryModel summary) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Iconsax.chart_2, size: 16, color: Color(0xFF2563EB)),
+              SizedBox(width: 6),
+              Text(
+                "Monthly Performance Summary",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildMiniMetric("Completed", "${summary.totalCompletions}", const Color(0xFF2563EB), const Color(0xFFEFF6FF)),
+              const SizedBox(width: 8),
+              _buildMiniMetric("Approved", "${summary.totalApproved}", const Color(0xFF059669), const Color(0xFFDCFCE7)),
+              const SizedBox(width: 8),
+              _buildMiniMetric("Pending", "${summary.totalPendingApproval}", const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+              const SizedBox(width: 8),
+              _buildMiniMetric("Rejected", "${summary.totalRejected}", const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+            ],
+          ),
+          if (summary.additionalTasksCreated > 0) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E8FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.add_task_rounded, size: 14, color: Color(0xFF7C3AED)),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${summary.additionalTasksCreated} Ad-Hoc / Extra duties logged this month",
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniMetric(String label, String value, Color color, Color bg) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -981,7 +1355,7 @@ class _TasksScreenState extends State<TasksScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTopHeader(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _buildSegmentedTabs(),
               const SizedBox(height: 16),
 
@@ -1033,6 +1407,10 @@ class _TasksScreenState extends State<TasksScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 14),
+
+              Obx(() => _buildDateTimeStatusCard(controller.isActivelyClockedIn, controller.hasClockedOut)),
+              const SizedBox(height: 16),
               const SizedBox(height: 18),
 
               const Row(

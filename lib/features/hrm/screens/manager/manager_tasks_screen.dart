@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
+import 'package:auth_ui_app/common/widgets/form_fields/form_fields.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/models/manager_models.dart';
 import 'package:auth_ui_app/features/hrm/models/task_model.dart';
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
 class ManagerTasksScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -25,9 +25,10 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     controller.fetchCompletions();
     controller.fetchBranchTasks();
+    controller.fetchReport();
   }
 
   @override
@@ -40,80 +41,61 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: widget.onBack != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                onPressed: widget.onBack,
-              )
-            : null,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Daily Branch Tasks",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-            ),
-            Text(
-              "Task Verification & Branch Task CRUD",
-              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
-            tooltip: "Refresh",
-            onPressed: () {
-              controller.fetchCompletions();
-              controller.fetchBranchTasks();
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2563EB),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF2563EB),
-          indicatorWeight: 3,
-          tabs: [
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.task_square, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Submissions (${controller.pendingCount.value})"),
-                    ],
-                  ),
-                )),
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.setting_2, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Branch Tasks (${controller.branchTasks.length})"),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateBranchTaskModal(context),
         backgroundColor: const Color(0xFF2563EB),
         icon: const Icon(Icons.add_task_rounded, color: Colors.white),
         label: const Text("New Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSubmissionsTab(),
-          _buildBranchTasksTab(),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Daily Branch Tasks",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: () {
+                  controller.fetchCompletions();
+                  controller.fetchBranchTasks();
+                  controller.fetchReport();
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+              child: Obx(() => CustomSegmentedTabBar(
+                    controller: _tabController,
+                    tabs: [
+                      SegmentTab(
+                        label: "Submissions",
+                        icon: const Icon(Iconsax.task_square),
+                        badgeCount: controller.pendingCount.value,
+                      ),
+                      SegmentTab(
+                        label: "Branch Tasks",
+                        icon: const Icon(Iconsax.setting_2),
+                        badgeCount: controller.branchTasks.length,
+                      ),
+                      const SegmentTab(
+                        label: "Analytics",
+                        icon: Icon(Iconsax.chart_2),
+                      ),
+                    ],
+                  )),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSubmissionsTab(),
+                  _buildBranchTasksTab(),
+                  _buildAnalyticsTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -615,65 +597,64 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
                   IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
-              const Divider(),
+              const Divider(height: 20),
               Form(
                 key: formKey,
                 child: Column(
                   children: [
-                    TextFormField(
+                    CustomTextField(
+                      label: "Task Title",
+                      hintText: "e.g. Morning Counter Inspection",
                       controller: titleCtrl,
-                      decoration: const InputDecoration(labelText: "Task Title *", prefixIcon: Icon(Iconsax.task)),
-                      validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
+                      prefixIcon: const Icon(Icons.assignment_outlined, size: 18, color: Color(0xFF64748B)),
+                      isRequired: true,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? "Task title is required" : null,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
+                    const SizedBox(height: 12),
+                    CustomTextArea(
+                      label: "Description / Checklist",
+                      hintText: "Enter daily task requirements or checklist...",
                       controller: descCtrl,
-                      decoration: const InputDecoration(labelText: "Description / Checklist", prefixIcon: Icon(Iconsax.note)),
-                      maxLines: 2,
+                      minLines: 2,
+                      maxLines: 4,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     if (empController.options.value?.branches.isNotEmpty == true)
-                      DropdownButtonFormField<int>(
+                      CustomDropdownField<int>(
+                        label: "Assign to Branch",
                         value: branchId,
-                        decoration: const InputDecoration(labelText: "Branch", prefixIcon: Icon(Iconsax.building)),
-                        items: empController.options.value!.branches
-                            .map((b) => DropdownMenuItem(value: b.id, child: Text(b.name)))
-                            .toList(),
+                        prefixIcon: const Icon(Icons.business_outlined, size: 18, color: Color(0xFF64748B)),
+                        items: empController.options.value!.branches.map((b) => b.id).toList(),
+                        itemLabelBuilder: (id) => empController.options.value!.branches.firstWhere((b) => b.id == id).name,
                         onChanged: (val) => setModalState(() => branchId = val),
                       ),
-                    const SizedBox(height: 10),
-                    SwitchListTile(
-                      title: const Text("Task Active for Staff", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    CustomSwitchTile(
+                      title: "Task Active for Staff",
+                      subtitle: "When enabled, clocked-in staff will see this task",
                       value: isActive,
-                      activeColor: const Color(0xFF2563EB),
-                      contentPadding: EdgeInsets.zero,
+                      isCard: true,
                       onChanged: (val) => setModalState(() => isActive = val),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () async {
-                          if (formKey.currentState!.validate()) {
-                            final body = {
-                              'task_name': titleCtrl.text.trim(),
-                              if (descCtrl.text.isNotEmpty) 'description': descCtrl.text.trim(),
-                              if (branchId != null) 'branch_id': branchId,
-                              'is_active': isActive ? 1 : 0,
-                            };
-                            final ok = await controller.createBranchTask(body);
-                            if (ok && ctx.mounted) Navigator.pop(ctx);
-                          }
-                        },
-                        child: const Text("Save & Publish Task", style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
+                    Obx(() => CustomButton(
+                          text: "Save & Publish Task",
+                          variant: CustomButtonVariant.primary,
+                          isLoading: controller.isLoading.value,
+                          icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              final body = {
+                                'task_name': titleCtrl.text.trim(),
+                                if (descCtrl.text.isNotEmpty) 'description': descCtrl.text.trim(),
+                                if (branchId != null) 'branch_id': branchId,
+                                'is_active': isActive ? 1 : 0,
+                              };
+                              final ok = await controller.createBranchTask(body);
+                              if (ok && ctx.mounted) Navigator.pop(ctx);
+                            }
+                          },
+                        )),
                   ],
                 ),
               ),
@@ -688,7 +669,6 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
     final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(text: task.taskName);
     final descCtrl = TextEditingController(text: task.description ?? '');
-    int? branchId = task.branchId;
     bool isActive = task.isActive;
 
     showModalBottomSheet(
@@ -699,7 +679,7 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
         builder: (context, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
           child: Column(
@@ -709,67 +689,76 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Edit Branch Task", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.edit_note, color: Color(0xFF2563EB), size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text("Edit Branch Task", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  IconButton(icon: const Icon(Icons.close, color: Color(0xFF64748B)), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
-              const Divider(),
+              const Divider(height: 20),
               Form(
                 key: formKey,
                 child: Column(
                   children: [
-                    TextFormField(
+                    CustomTextField(
+                      label: "Task Title",
                       controller: titleCtrl,
-                      decoration: const InputDecoration(labelText: "Task Title *"),
-                      validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
+                      isRequired: true,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? "Required" : null,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
+                    const SizedBox(height: 12),
+                    CustomTextArea(
+                      label: "Description",
                       controller: descCtrl,
-                      decoration: const InputDecoration(labelText: "Description"),
-                      maxLines: 2,
+                      minLines: 2,
+                      maxLines: 4,
                     ),
-                    const SizedBox(height: 10),
-                    SwitchListTile(
-                      title: const Text("Task Active", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    CustomSwitchTile(
+                      title: "Task Active",
+                      subtitle: "Toggle task visibility for employee shifts",
                       value: isActive,
-                      activeColor: const Color(0xFF2563EB),
-                      contentPadding: EdgeInsets.zero,
+                      isCard: true,
                       onChanged: (val) => setModalState(() => isActive = val),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () async {
-                          if (formKey.currentState!.validate()) {
-                            final body = {
-                              'task_name': titleCtrl.text.trim(),
-                              'description': descCtrl.text.trim(),
-                              'is_active': isActive ? 1 : 0,
-                            };
-                            final ok = await controller.updateBranchTask(task.id, body);
-                            if (ok && ctx.mounted) Navigator.pop(ctx);
-                          }
-                        },
-                        child: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
+                    Obx(() => CustomButton(
+                          text: "Save Task Changes",
+                          variant: CustomButtonVariant.primary,
+                          isLoading: controller.isLoading.value,
+                          icon: const Icon(Icons.save_outlined, color: Colors.white, size: 18),
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              final body = {
+                                'task_name': titleCtrl.text.trim(),
+                                'description': descCtrl.text.trim(),
+                                'is_active': isActive ? 1 : 0,
+                              };
+                              final ok = await controller.updateBranchTask(task.id, body);
+                              if (ok && ctx.mounted) Navigator.pop(ctx);
+                            }
+                          },
+                        )),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   void _confirmDeleteBranchTask(BuildContext context, ManagerBranchTaskCrudModel task) {
     showDialog(
@@ -789,6 +778,332 @@ class _ManagerTasksScreenState extends State<ManagerTasksScreen> with SingleTick
             child: const Text("Delete"),
           ),
         ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // TAB 3: MANAGER TASK ANALYTICS & MONITORING REPORT
+  // =========================================================================
+  Widget _buildAnalyticsTab() {
+    return RefreshIndicator(
+      onRefresh: () => controller.fetchReport(),
+      color: const Color(0xFF2563EB),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+        child: Obx(() {
+          if (controller.isLoadingReport.value && controller.report.value == null) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+              ),
+            );
+          }
+
+          final reportData = controller.report.value;
+          final summary = reportData?.summary;
+          final employees = reportData?.employees ?? [];
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Month Selector Header
+              _buildReportMonthSelector(),
+              const SizedBox(height: 14),
+
+              // Overview Summary Grid
+              if (summary != null) ...[
+                _buildReportOverviewGrid(summary),
+                const SizedBox(height: 18),
+              ],
+
+              // Employee Performance List Title
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Employee Task Performance (${employees.length})",
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (employees.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: Column(
+                      children: [
+                        Icon(Iconsax.note_remove, size: 40, color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "No employee task analytics for this period",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...employees.map((emp) => _buildEmployeeTaskReportCard(emp)),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildReportMonthSelector() {
+    final currentMonthDate = DateTime(controller.selectedReportYear.value, controller.selectedReportMonth.value);
+    final monthName = "${_getMonthName(currentMonthDate.month)} ${currentMonthDate.year}";
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            onPressed: () {
+              final prev = DateTime(controller.selectedReportYear.value, controller.selectedReportMonth.value - 1);
+              controller.fetchReport(month: prev.month, year: prev.year);
+            },
+            icon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF1E293B)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          Row(
+            children: [
+              const Icon(Iconsax.calendar_1, size: 16, color: Color(0xFF2563EB)),
+              const SizedBox(width: 8),
+              Text(
+                monthName,
+                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          IconButton(
+            onPressed: () {
+              final next = DateTime(controller.selectedReportYear.value, controller.selectedReportMonth.value + 1);
+              controller.fetchReport(month: next.month, year: next.year);
+            },
+            icon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF1E293B)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
+  Widget _buildReportOverviewGrid(ManagerTaskReportSummaryModel summary) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Organization Task Summary",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "${summary.totalEmployeesMonitored} Staff Monitored",
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildReportStatBox("Completions", "${summary.totalCompletions}", const Color(0xFF2563EB), const Color(0xFFEFF6FF)),
+              const SizedBox(width: 8),
+              _buildReportStatBox("Approved", "${summary.totalApproved}", const Color(0xFF059669), const Color(0xFFDCFCE7)),
+              const SizedBox(width: 8),
+              _buildReportStatBox("Pending", "${summary.totalPendingReview}", const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+              const SizedBox(width: 8),
+              _buildReportStatBox("Rejected", "${summary.totalRejected}", const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+            ],
+          ),
+          if (summary.totalAdditionalTasksCreated > 0) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E8FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.add_task_rounded, size: 14, color: Color(0xFF7C3AED)),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${summary.totalAdditionalTasksCreated} Ad-Hoc / Additional duties logged by team",
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportStatBox(String label, String value, Color color, Color bg) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmployeeTaskReportCard(ManagerTaskReportEmployeeModel emp) {
+    final double approvalRate = emp.totalCompletions > 0 ? (emp.approvedCount / emp.totalCompletions) : 0.0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    child: Text(
+                      emp.name.isNotEmpty ? emp.name[0] : 'E',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(emp.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                      Text(
+                        "${emp.department ?? 'Staff'} • ${emp.branch ?? 'Main Branch'}",
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  "${emp.totalCompletions} Completed",
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Mini metrics row
+          Row(
+            children: [
+              _buildEmpMiniTag("Approved: ${emp.approvedCount}", const Color(0xFF059669), const Color(0xFFDCFCE7)),
+              const SizedBox(width: 6),
+              _buildEmpMiniTag("Pending: ${emp.pendingReviewCount}", const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+              const SizedBox(width: 6),
+              if (emp.rejectedCount > 0) ...[
+                _buildEmpMiniTag("Rejected: ${emp.rejectedCount}", const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+                const SizedBox(width: 6),
+              ],
+              if (emp.additionalTasksLogged > 0)
+                _buildEmpMiniTag("+${emp.additionalTasksLogged} Ad-Hoc", const Color(0xFF7C3AED), const Color(0xFFF3E8FF)),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: approvalRate,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              minHeight: 4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmpMiniTag(String text, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(4)),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: textColor),
       ),
     );
   }

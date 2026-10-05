@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 import 'package:auth_ui_app/services/notification_engine_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -42,31 +43,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1E293B)),
-          onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          "Notifications Center",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await NotificationEngineService.instance.markAllAsRead();
-              _loadNotifications();
-              THelperFunctions.showSnackBar("Marked all as read");
-            },
-            child: const Text("Mark all read", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Filter Row
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Notifications",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge(
+                label: "Mark all read",
+                icon: Icons.done_all_rounded,
+                onTap: () async {
+                  await NotificationEngineService.instance.markAllAsRead();
+                  _loadNotifications();
+                  THelperFunctions.showSnackBar("Marked all as read");
+                },
+              ),
+            ),
+            // Filter Row
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -115,6 +108,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
           ),
         ],
+      ),
       ),
     );
   }

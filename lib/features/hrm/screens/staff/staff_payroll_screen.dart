@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
-import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
 
 class PayrollScreen extends StatefulWidget {
   final VoidCallback? onBackToDashboard;
@@ -116,77 +116,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top Header with Title and History Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.menu_rounded, size: 28, color: Color(0xFF1E293B)),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 14),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Payroll",
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            "Your earnings and dues at a glance",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  // History Pill Button
-                  InkWell(
-                    onTap: () => setState(() => _showingHistory = true),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.history_rounded, size: 16, color: Color(0xFF1E293B)),
-                          SizedBox(width: 5),
-                          Text(
-                            "History",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              AppPageHeader(
+                title: "Payroll & Salary",
+                padding: EdgeInsets.zero,
+                onBack: widget.onBackToDashboard ?? () => Navigator.of(context).maybePop(),
+                action: AppHeaderActionBadge.history(
+                  onTap: () => setState(() => _showingHistory = true),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -659,63 +595,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top Back Button & Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => setState(() => _showingHistory = false),
-                        icon: const Icon(Icons.chevron_left_rounded, size: 30, color: Color(0xFF0F172A)),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 10),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Payroll History",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          Text(
-                            "View your past salary payments",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.filter_list_rounded, size: 16, color: Color(0xFF2563EB)),
-                        SizedBox(width: 4),
-                        Text(
-                          "Filter",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2563EB),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              AppPageHeader(
+                title: "Payroll History",
+                padding: EdgeInsets.zero,
+                onBack: () => setState(() => _showingHistory = false),
               ),
               const SizedBox(height: 16),
 

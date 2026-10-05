@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
+import 'package:auth_ui_app/common/widgets/form_fields/form_fields.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/models/manager_models.dart';
 
@@ -37,82 +39,58 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> with Si
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: widget.onBack != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-                onPressed: widget.onBack,
-              )
-            : null,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Staff Leave Approvals", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            Text("Review & record employee leave requests", style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2563EB)),
-            tooltip: "Refresh",
-            onPressed: () => controller.fetchLeaves(),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2563EB),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF2563EB),
-          indicatorWeight: 3,
-          tabs: [
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.clock, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Pending (${controller.pendingLeaves.length})"),
-                    ],
-                  ),
-                )),
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.verify, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Approved (${controller.approvedLeaves.length})"),
-                    ],
-                  ),
-                )),
-            Obx(() => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.close_circle, size: 16),
-                      const SizedBox(width: 6),
-                      Text("Rejected (${controller.rejectedLeaves.length})"),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateLeaveModal(context),
         backgroundColor: const Color(0xFF2563EB),
         icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: const Text("Create Leave", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildLeavesList(controller.pendingLeaves, isPending: true),
-          _buildLeavesList(controller.approvedLeaves),
-          _buildLeavesList(controller.rejectedLeaves),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Leave Approvals",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: () => controller.fetchLeaves(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+              child: Obx(() => CustomSegmentedTabBar(
+                    controller: _tabController,
+                    tabs: [
+                      SegmentTab(
+                        label: "Pending",
+                        icon: const Icon(Iconsax.clock),
+                        badgeCount: controller.pendingLeaves.length,
+                      ),
+                      SegmentTab(
+                        label: "Approved",
+                        icon: const Icon(Iconsax.verify),
+                        badgeCount: controller.approvedLeaves.length,
+                      ),
+                      SegmentTab(
+                        label: "Rejected",
+                        icon: const Icon(Iconsax.close_circle),
+                        badgeCount: controller.rejectedLeaves.length,
+                      ),
+                    ],
+                  )),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildLeavesList(controller.pendingLeaves, isPending: true),
+                  _buildLeavesList(controller.approvedLeaves),
+                  _buildLeavesList(controller.rejectedLeaves),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -174,7 +152,6 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> with Si
   // =========================================================================
   Widget _buildLeaveCard(ManagerLeaveModel item, {bool isPending = false}) {
     final isApproved = item.status == 'approved';
-    final isRejected = item.status == 'rejected';
 
     final Color statusColor = isPending
         ? const Color(0xFFD97706)
@@ -439,41 +416,58 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> with Si
                 child: Column(
                   children: [
                     // Employee Dropdown
-                    Obx(() => DropdownButtonFormField<int>(
-                          value: selectedEmpId,
-                          decoration: const InputDecoration(labelText: "Staff Member *", prefixIcon: Icon(Iconsax.user)),
-                          items: empController.activeEmployees
-                              .map((e) => DropdownMenuItem(value: e.id, child: Text("${e.name} (${e.employeeId})")))
-                              .toList(),
-                          onChanged: (val) => setSheetState(() => selectedEmpId = val),
-                          validator: (v) => v == null ? "Required" : null,
-                        )),
+                    Obx(() {
+                      final emps = empController.activeEmployees;
+                      return CustomDropdownField<int>(
+                        label: "Staff Member",
+                        isRequired: true,
+                        sheetTitle: "Select Staff Member",
+                        value: selectedEmpId,
+                        prefixIcon: const Icon(Iconsax.user, size: 18, color: Color(0xFF64748B)),
+                        items: emps.map((e) => e.id).toList(),
+                        itemLabelBuilder: (id) {
+                          final match = emps.firstWhereOrNull((e) => e.id == id);
+                          return match != null ? "${match.name} (${match.employeeId})" : "Select Staff";
+                        },
+                        onChanged: (val) => setSheetState(() => selectedEmpId = val),
+                        validator: (v) => v == null ? "Required" : null,
+                      );
+                    }),
                     const SizedBox(height: 12),
 
                     // Leave Type & Status
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<int>(
+                          child: CustomDropdownField<int>(
+                            label: "Leave Type",
+                            sheetTitle: "Select Leave Type",
+                            searchable: false,
                             value: leaveTypeId,
-                            decoration: const InputDecoration(labelText: "Leave Type"),
-                            items: const [
-                              DropdownMenuItem(value: 1, child: Text("Casual Leave")),
-                              DropdownMenuItem(value: 2, child: Text("Sick Leave")),
-                              DropdownMenuItem(value: 3, child: Text("Annual Leave")),
-                            ],
+                            items: const [1, 2, 3],
+                            itemLabelBuilder: (id) {
+                              switch (id) {
+                                case 2:
+                                  return "Sick Leave";
+                                case 3:
+                                  return "Annual Leave";
+                                case 1:
+                                default:
+                                  return "Casual Leave";
+                              }
+                            },
                             onChanged: (val) => setSheetState(() => leaveTypeId = val ?? 1),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: CustomDropdownField<String>(
+                            label: "Status",
+                            sheetTitle: "Select Status",
+                            searchable: false,
                             value: status,
-                            decoration: const InputDecoration(labelText: "Status"),
-                            items: const [
-                              DropdownMenuItem(value: 'approved', child: Text("Approved")),
-                              DropdownMenuItem(value: 'pending', child: Text("Pending")),
-                            ],
+                            items: const ['approved', 'pending'],
+                            itemLabelBuilder: (s) => s == 'approved' ? "Approved" : "Pending",
                             onChanged: (val) => setSheetState(() => status = val ?? 'approved'),
                           ),
                         ),

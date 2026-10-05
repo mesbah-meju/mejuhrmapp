@@ -159,11 +159,35 @@ class HrmApiService {
   // 3. Attendance & Geofenced Clock In/Out
   // =========================================================================
 
-  /// 3.1 Clock In with GPS
+  /// 3.1 Unified Clock In / Clock Out Endpoint
+  Future<ApiResponse<AttendanceRecord>> clockInOut({
+    required String type, // 'clockin' or 'clockout'
+    double? latitude,
+    double? longitude,
+    double? accuracy,
+    String? notes,
+  }) async {
+    final body = <String, dynamic>{
+      'type': type,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (accuracy != null) 'accuracy': accuracy,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+
+    return await _client.post<AttendanceRecord>(
+      ApiConstants.clockInOutEndpoint,
+      body: body,
+      fromJson: (json) => AttendanceRecord.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 3.1.1 Clock In with GPS & Notes
   Future<ApiResponse<AttendanceRecord>> clockIn({
     required double latitude,
     required double longitude,
     double? accuracy,
+    String? notes,
   }) async {
     return await _client.post<AttendanceRecord>(
       ApiConstants.clockInEndpoint,
@@ -171,16 +195,18 @@ class HrmApiService {
         'latitude': latitude,
         'longitude': longitude,
         if (accuracy != null) 'accuracy': accuracy,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
       },
       fromJson: (json) => AttendanceRecord.fromJson(Map<String, dynamic>.from(json as Map)),
     );
   }
 
-  /// 3.2 Clock Out with GPS
+  /// 3.2 Clock Out with GPS & Notes
   Future<ApiResponse<AttendanceRecord>> clockOut({
     required double latitude,
     required double longitude,
     double? accuracy,
+    String? notes,
   }) async {
     return await _client.post<AttendanceRecord>(
       ApiConstants.clockOutEndpoint,
@@ -188,8 +214,20 @@ class HrmApiService {
         'latitude': latitude,
         'longitude': longitude,
         if (accuracy != null) 'accuracy': accuracy,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
       },
       fromJson: (json) => AttendanceRecord.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 3.2.1 Offline Punch Batch Synchronization
+  Future<ApiResponse<AttendanceSyncResponse>> syncAttendanceBatch(List<Map<String, dynamic>> punches) async {
+    return await _client.post<AttendanceSyncResponse>(
+      ApiConstants.attendanceSyncEndpoint,
+      body: {
+        'punches': punches,
+      },
+      fromJson: (json) => AttendanceSyncResponse.fromJson(Map<String, dynamic>.from(json as Map)),
     );
   }
 
@@ -245,14 +283,38 @@ class HrmApiService {
     );
   }
 
+  /// 3.5 Comprehensive Staff Monthly / Custom Period Report
+  Future<ApiResponse<StaffAttendanceReportResponse>> getStaffAttendanceReport({
+    int? month,
+    int? year,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final Map<String, String> params = {};
+    if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+
+    return await _client.get<StaffAttendanceReportResponse>(
+      ApiConstants.attendanceReportEndpoint,
+      queryParams: params,
+      fromJson: (json) => StaffAttendanceReportResponse.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
   // =========================================================================
   // 4. Tasks API (Branch Tasks & Completions)
   // =========================================================================
 
   /// 4.1 Get Today's Tasks & Summary
-  Future<ApiResponse<TodayTasksResponse>> getTodayTasks() async {
+  Future<ApiResponse<TodayTasksResponse>> getTodayTasks({String? date}) async {
+    final Map<String, String> params = {};
+    if (date != null && date.isNotEmpty) params['date'] = date;
+
     return await _client.get<TodayTasksResponse>(
       ApiConstants.tasksTodayEndpoint,
+      queryParams: params,
       fromJson: (json) => TodayTasksResponse.fromJson(Map<String, dynamic>.from(json as Map)),
     );
   }
@@ -272,18 +334,61 @@ class HrmApiService {
     );
   }
 
-  /// 4.3 Staff: Personal Task Completion History (Full Response with Pagination)
+  /// 4.3 Staff: Create Additional / Ad-Hoc Task
+  Future<ApiResponse<BranchTaskModel>> createAdditionalTask({
+    required String taskName,
+    String? description,
+    String? notes,
+    bool isCompleted = true,
+  }) async {
+    return await _client.post<BranchTaskModel>(
+      ApiConstants.tasksAdditionalEndpoint,
+      body: {
+        'task_name': taskName,
+        if (description != null && description.isNotEmpty) 'description': description,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        'is_completed': isCompleted,
+      },
+      fromJson: (json) => BranchTaskModel.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 4.4 Staff: Task Performance & Analytics Report
+  Future<ApiResponse<StaffTaskReportResponse>> getStaffTaskReport({
+    int? month,
+    int? year,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final Map<String, String> params = {};
+    if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+
+    return await _client.get<StaffTaskReportResponse>(
+      ApiConstants.tasksReportEndpoint,
+      queryParams: params,
+      fromJson: (json) => StaffTaskReportResponse.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 4.5 Staff: Personal Task Completion History (Full Response with Pagination)
   Future<ApiResponse<TaskHistoryResponse>> getTaskHistoryResponse({
     int? month,
     int? year,
+    String? startDate,
+    String? endDate,
     String? status,
-    int perPage = 15,
+    int perPage = 20,
   }) async {
     final Map<String, String> params = {
       'per_page': perPage.toString(),
     };
     if (month != null) params['month'] = month.toString();
     if (year != null) params['year'] = year.toString();
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
     if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
       params['status'] = status.toLowerCase();
     }
@@ -295,16 +400,20 @@ class HrmApiService {
     );
   }
 
-  /// 4.3 Task History (Helper for list of items)
+  /// 4.5 Task History (Helper for list of items)
   Future<ApiResponse<List<TaskHistoryItemModel>>> getTaskHistory({
     int? month,
     int? year,
+    String? startDate,
+    String? endDate,
     String? status,
-    int perPage = 15,
+    int perPage = 20,
   }) async {
     final response = await getTaskHistoryResponse(
       month: month,
       year: year,
+      startDate: startDate,
+      endDate: endDate,
       status: status,
       perPage: perPage,
     );
@@ -319,11 +428,88 @@ class HrmApiService {
     );
   }
 
-  /// 4.4 Manager Portal: List Task Completions for Review
+  /// 4.6 Manager Portal: List All Branch Tasks
+  Future<ApiResponse<List<ManagerBranchTaskModel>>> managerGetBranchTasks({
+    int? branchId,
+    bool? isActive,
+  }) async {
+    final Map<String, String> params = {};
+    if (branchId != null) params['branch_id'] = branchId.toString();
+    if (isActive != null) params['is_active'] = isActive ? '1' : '0';
+
+    return await _client.get<List<ManagerBranchTaskModel>>(
+      ApiConstants.managerBranchTasksEndpoint,
+      queryParams: params,
+      fromJson: (json) {
+        List<dynamic> list = [];
+        if (json is Map && json['tasks'] is List) {
+          list = json['tasks'] as List;
+        } else if (json is List) {
+          list = json;
+        }
+
+        return list
+            .map((item) => ManagerBranchTaskModel.fromJson(Map<String, dynamic>.from(item as Map)))
+            .toList();
+      },
+    );
+  }
+
+  /// 4.7 Manager Portal: Create Branch Task
+  Future<ApiResponse<ManagerBranchTaskModel>> managerCreateBranchTask({
+    required String taskName,
+    String? description,
+    int? branchId,
+    bool isActive = true,
+  }) async {
+    return await _client.post<ManagerBranchTaskModel>(
+      ApiConstants.managerBranchTasksEndpoint,
+      body: {
+        'task_name': taskName,
+        if (description != null && description.isNotEmpty) 'description': description,
+        if (branchId != null) 'branch_id': branchId,
+        'is_active': isActive,
+      },
+      fromJson: (json) => ManagerBranchTaskModel.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 4.8 Manager Portal: Update Branch Task
+  Future<ApiResponse<ManagerBranchTaskModel>> managerUpdateBranchTask({
+    required int id,
+    required String taskName,
+    String? description,
+    int? branchId,
+    bool? isActive,
+  }) async {
+    return await _client.put<ManagerBranchTaskModel>(
+      "${ApiConstants.managerBranchTasksEndpoint}/$id",
+      body: {
+        'task_name': taskName,
+        if (description != null) 'description': description,
+        if (branchId != null) 'branch_id': branchId,
+        if (isActive != null) 'is_active': isActive,
+      },
+      fromJson: (json) => ManagerBranchTaskModel.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 4.9 Manager Portal: Delete Branch Task
+  Future<ApiResponse<dynamic>> managerDeleteBranchTask(int id) async {
+    return await _client.delete<dynamic>(
+      "${ApiConstants.managerBranchTasksEndpoint}/$id",
+    );
+  }
+
+  /// 4.10 Manager Portal: List Task Completions for Review
   Future<ApiResponse<ManagerTaskCompletionsResponse>> getManagerTaskCompletions({
     String? date,
     int? month,
+    int? year,
+    String? startDate,
+    String? endDate,
     int? branchId,
+    int? employeeId,
     String? status,
     int perPage = 20,
   }) async {
@@ -332,7 +518,11 @@ class HrmApiService {
     };
     if (date != null) params['date'] = date;
     if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
     if (branchId != null) params['branch_id'] = branchId.toString();
+    if (employeeId != null) params['employee_id'] = employeeId.toString();
     if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
       params['status'] = status.toLowerCase();
     }
@@ -344,7 +534,7 @@ class HrmApiService {
     );
   }
 
-  /// 4.5 Manager Portal: Approve or Reject Task Completion
+  /// 4.11 Manager Portal: Approve or Reject Task Completion
   Future<ApiResponse<Map<String, dynamic>>> reviewManagerTask({
     required int completionId,
     required String status, // 'approved' or 'rejected'
@@ -358,6 +548,32 @@ class HrmApiService {
         if (comment != null) 'manager_comment': comment,
       },
       fromJson: (json) => Map<String, dynamic>.from(json as Map),
+    );
+  }
+
+  /// 4.12 Manager Portal: Task Analytics & Performance Report
+  Future<ApiResponse<ManagerTaskReportResponse>> managerGetTasksReport({
+    String? startDate,
+    String? endDate,
+    int? month,
+    int? year,
+    int? branchId,
+    int? departmentId,
+    int? employeeId,
+  }) async {
+    final Map<String, String> params = {};
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+    if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (branchId != null) params['branch_id'] = branchId.toString();
+    if (departmentId != null) params['department_id'] = departmentId.toString();
+    if (employeeId != null) params['employee_id'] = employeeId.toString();
+
+    return await _client.get<ManagerTaskReportResponse>(
+      ApiConstants.managerTasksReportEndpoint,
+      queryParams: params,
+      fromJson: (json) => ManagerTaskReportResponse.fromJson(Map<String, dynamic>.from(json as Map)),
     );
   }
 
@@ -510,19 +726,80 @@ class HrmApiService {
   // =========================================================================
 
   /// 6.1 Get Dropdowns / Options for Creating & Editing Staff
-  Future<ApiResponse<EmployeeOptionsModel>> getEmployeeOptions() async {
+  Future<ApiResponse<EmployeeOptionsModel>> getEmployeeOptions({
+    dynamic branchId,
+    dynamic departmentId,
+  }) async {
+    final Map<String, String> params = {};
+    if (branchId != null && branchId.toString().isNotEmpty) {
+      params['branch_id'] = branchId.toString();
+    }
+    if (departmentId != null && departmentId.toString().isNotEmpty) {
+      params['department_id'] = departmentId.toString();
+    }
+
     return await _client.get<EmployeeOptionsModel>(
       ApiConstants.managerEmployeeOptionsEndpoint,
+      queryParams: params,
       fromJson: (json) => EmployeeOptionsModel.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 6.1.1 Get Departments by Branch ID
+  Future<ApiResponse<List<DepartmentOption>>> getDepartments({dynamic branchId}) async {
+    final Map<String, String> params = {};
+    if (branchId != null) params['branch_id'] = branchId.toString();
+
+    return await _client.get<List<DepartmentOption>>(
+      ApiConstants.managerDepartmentsEndpoint,
+      queryParams: params,
+      fromJson: (json) {
+        List<dynamic> list = [];
+        if (json is Map && json['data'] is List) {
+          list = json['data'] as List;
+        } else if (json is List) {
+          list = json;
+        }
+        return list.map((item) => DepartmentOption.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+      },
+    );
+  }
+
+  /// 6.1.2 Get Designations by Department ID & Branch ID
+  Future<ApiResponse<List<DesignationOption>>> getDesignations({
+    dynamic departmentId,
+    dynamic branchId,
+  }) async {
+    final Map<String, String> params = {};
+    if (departmentId != null) params['department_id'] = departmentId.toString();
+    if (branchId != null) params['branch_id'] = branchId.toString();
+
+    return await _client.get<List<DesignationOption>>(
+      ApiConstants.managerDesignationsEndpoint,
+      queryParams: params,
+      fromJson: (json) {
+        List<dynamic> list = [];
+        if (json is Map && json['data'] is List) {
+          list = json['data'] as List;
+        } else if (json is List) {
+          list = json;
+        }
+        return list.map((item) => DesignationOption.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+      },
     );
   }
 
   /// 6.2 List All Employees (with filters & pagination)
   Future<ApiResponse<ManagerEmployeesResponse>> getManagerEmployees({
     String? search,
-    String? status, // 'active' or 'disabled'
-    int? branchId,
-    int? departmentId,
+    String? status, // 'active', 'disabled', 'all'
+    dynamic branchId,
+    dynamic departmentId,
+    dynamic designationId,
+    String? employmentType,
+    String? gender,
+    String? sort,
+    String? direction,
     int perPage = 25,
     int page = 1,
   }) async {
@@ -534,8 +811,23 @@ class HrmApiService {
     if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
       params['status'] = status.toLowerCase();
     }
-    if (branchId != null) params['branch_id'] = branchId.toString();
-    if (departmentId != null) params['department_id'] = departmentId.toString();
+    if (branchId != null && branchId.toString().isNotEmpty) {
+      params['branch_id'] = branchId.toString();
+    }
+    if (departmentId != null && departmentId.toString().isNotEmpty) {
+      params['department_id'] = departmentId.toString();
+    }
+    if (designationId != null && designationId.toString().isNotEmpty) {
+      params['designation_id'] = designationId.toString();
+    }
+    if (employmentType != null && employmentType.isNotEmpty && employmentType.toLowerCase() != 'all') {
+      params['employment_type'] = employmentType;
+    }
+    if (gender != null && gender.isNotEmpty && gender.toLowerCase() != 'all') {
+      params['gender'] = gender;
+    }
+    if (sort != null && sort.isNotEmpty) params['sort'] = sort;
+    if (direction != null && direction.isNotEmpty) params['direction'] = direction;
 
     return await _client.get<ManagerEmployeesResponse>(
       ApiConstants.managerEmployeesEndpoint,
@@ -573,7 +865,15 @@ class HrmApiService {
     );
   }
 
-  /// 6.6 Disable / Enable Employee (Toggle Status)
+  /// 6.6 Delete Employee Document
+  Future<ApiResponse<Map<String, dynamic>>> deleteEmployeeDocument(int employeeId, int documentId) async {
+    return await _client.delete<Map<String, dynamic>>(
+      "${ApiConstants.managerEmployeesEndpoint}/$employeeId/documents/$documentId",
+      fromJson: (json) => Map<String, dynamic>.from(json as Map),
+    );
+  }
+
+  /// 6.7 Disable / Enable Employee (Toggle Status)
   Future<ApiResponse<Map<String, dynamic>>> toggleEmployeeStatus(int id) async {
     return await _client.post<Map<String, dynamic>>(
       "${ApiConstants.managerEmployeesEndpoint}/$id/toggle-status",
@@ -582,7 +882,7 @@ class HrmApiService {
     );
   }
 
-  /// 6.7 Change / Reset Staff Password
+  /// 6.8 Change / Reset Staff Password
   Future<ApiResponse<Map<String, dynamic>>> changeEmployeePassword({
     required int id,
     required String password,
@@ -598,7 +898,7 @@ class HrmApiService {
     );
   }
 
-  /// 6.8 Delete Employee
+  /// 6.9 Delete Employee
   Future<ApiResponse<Map<String, dynamic>>> deleteEmployee(int id) async {
     return await _client.delete<Map<String, dynamic>>(
       "${ApiConstants.managerEmployeesEndpoint}/$id",
@@ -610,42 +910,141 @@ class HrmApiService {
   // 7. Manager Panel - Staff Attendance Management
   // =========================================================================
 
-  /// 7.1 View Staff Attendance
+  /// 7.1 Live Today Team Overview (Manager)
+  Future<ApiResponse<ManagerAttendanceOverviewResponse>> getManagerAttendanceOverview({
+    String? date,
+    dynamic branchId,
+    dynamic departmentId,
+  }) async {
+    final Map<String, String> params = {};
+    if (date != null && date.isNotEmpty) params['date'] = date;
+    if (branchId != null && branchId.toString().isNotEmpty) {
+      params['branch_id'] = branchId.toString();
+    }
+    if (departmentId != null && departmentId.toString().isNotEmpty) {
+      params['department_id'] = departmentId.toString();
+    }
+
+    return await _client.get<ManagerAttendanceOverviewResponse>(
+      ApiConstants.managerAttendanceOverviewEndpoint,
+      queryParams: params,
+      fromJson: (json) => ManagerAttendanceOverviewResponse.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 7.2 Filterable Paginated Attendance List (Manager)
+  Future<ApiResponse<ManagerAttendanceListResponse>> getManagerAttendanceList({
+    String? search,
+    dynamic employeeId,
+    dynamic branchId,
+    dynamic departmentId,
+    dynamic designationId,
+    String? date,
+    String? startDate,
+    String? endDate,
+    int? month,
+    int? year,
+    String? status,
+    int perPage = 20,
+    int page = 1,
+  }) async {
+    final Map<String, String> params = {
+      'per_page': perPage.toString(),
+      'page': page.toString(),
+    };
+    if (search != null && search.trim().isNotEmpty) params['search'] = search.trim();
+    if (employeeId != null && employeeId.toString().isNotEmpty) {
+      params['employee_id'] = employeeId.toString();
+    }
+    if (branchId != null && branchId.toString().isNotEmpty) {
+      params['branch_id'] = branchId.toString();
+    }
+    if (departmentId != null && departmentId.toString().isNotEmpty) {
+      params['department_id'] = departmentId.toString();
+    }
+    if (designationId != null && designationId.toString().isNotEmpty) {
+      params['designation_id'] = designationId.toString();
+    }
+    if (date != null && date.isNotEmpty) params['date'] = date;
+    if (startDate != null && startDate.isNotEmpty) params['start_date'] = startDate;
+    if (endDate != null && endDate.isNotEmpty) params['end_date'] = endDate;
+    if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
+      params['status'] = status.toLowerCase();
+    }
+
+    return await _client.get<ManagerAttendanceListResponse>(
+      ApiConstants.managerAttendancesEndpoint,
+      queryParams: params,
+      fromJson: (json) => ManagerAttendanceListResponse.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 7.3 Helper for Simple List of Manager Attendances
   Future<ApiResponse<List<ManagerAttendanceModel>>> getManagerAttendances({
     String? date,
     int? branchId,
     int? employeeId,
     String? status,
   }) async {
-    final Map<String, String> params = {};
-    if (date != null) params['date'] = date;
-    if (branchId != null) params['branch_id'] = branchId.toString();
-    if (employeeId != null) params['employee_id'] = employeeId.toString();
-    if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
-      params['status'] = status.toLowerCase();
-    }
+    final res = await getManagerAttendanceList(
+      date: date,
+      branchId: branchId,
+      employeeId: employeeId,
+      status: status,
+      perPage: 100,
+    );
 
-    return await _client.get<List<ManagerAttendanceModel>>(
-      ApiConstants.managerAttendancesEndpoint,
-      queryParams: params,
-      fromJson: (json) {
-        List<dynamic> list = [];
-        if (json is Map && json['data'] is List) {
-          list = json['data'] as List;
-        } else if (json is Map && json['attendances'] is List) {
-          list = json['attendances'] as List;
-        } else if (json is List) {
-          list = json;
-        }
-
-        return list
-            .map((item) => ManagerAttendanceModel.fromJson(Map<String, dynamic>.from(item as Map)))
-            .toList();
-      },
+    return ApiResponse<List<ManagerAttendanceModel>>(
+      success: res.success,
+      message: res.message,
+      data: res.data?.items ?? [],
+      errors: res.errors,
+      statusCode: res.statusCode,
+      rawJson: res.rawJson,
     );
   }
 
-  /// 7.2 Create Attendance Manually
+  /// 7.4 Filterable Attendance Analytics Report (Manager)
+  Future<ApiResponse<ManagerAttendanceReportResponse>> getManagerAttendanceReport({
+    int? month,
+    int? year,
+    String? startDate,
+    String? endDate,
+    dynamic branchId,
+    dynamic departmentId,
+    dynamic designationId,
+    dynamic employeeId,
+    String? search,
+  }) async {
+    final Map<String, String> params = {};
+    if (month != null) params['month'] = month.toString();
+    if (year != null) params['year'] = year.toString();
+    if (startDate != null && startDate.isNotEmpty) params['start_date'] = startDate;
+    if (endDate != null && endDate.isNotEmpty) params['end_date'] = endDate;
+    if (branchId != null && branchId.toString().isNotEmpty) {
+      params['branch_id'] = branchId.toString();
+    }
+    if (departmentId != null && departmentId.toString().isNotEmpty) {
+      params['department_id'] = departmentId.toString();
+    }
+    if (designationId != null && designationId.toString().isNotEmpty) {
+      params['designation_id'] = designationId.toString();
+    }
+    if (employeeId != null && employeeId.toString().isNotEmpty) {
+      params['employee_id'] = employeeId.toString();
+    }
+    if (search != null && search.trim().isNotEmpty) params['search'] = search.trim();
+
+    return await _client.get<ManagerAttendanceReportResponse>(
+      ApiConstants.managerAttendanceReportEndpoint,
+      queryParams: params,
+      fromJson: (json) => ManagerAttendanceReportResponse.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+  }
+
+  /// 7.5 Create Attendance Manually (Manager)
   Future<ApiResponse<Map<String, dynamic>>> createAttendanceManually(Map<String, dynamic> data) async {
     return await _client.post<Map<String, dynamic>>(
       ApiConstants.managerAttendancesEndpoint,
@@ -654,7 +1053,7 @@ class HrmApiService {
     );
   }
 
-  /// 7.3 Edit Attendance
+  /// 7.6 Edit Attendance (Manager)
   Future<ApiResponse<Map<String, dynamic>>> updateAttendance(int id, Map<String, dynamic> data) async {
     return await _client.put<Map<String, dynamic>>(
       "${ApiConstants.managerAttendancesEndpoint}/$id",
@@ -663,7 +1062,7 @@ class HrmApiService {
     );
   }
 
-  /// 7.4 Delete Attendance
+  /// 7.7 Delete Attendance (Manager)
   Future<ApiResponse<Map<String, dynamic>>> deleteAttendance(int id) async {
     return await _client.delete<Map<String, dynamic>>(
       "${ApiConstants.managerAttendancesEndpoint}/$id",

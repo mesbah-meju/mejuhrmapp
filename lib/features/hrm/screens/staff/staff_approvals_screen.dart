@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import 'package:auth_ui_app/common/widgets/app_page_header.dart';
+import 'package:auth_ui_app/common/widgets/tabs/tabs.dart';
 import 'package:auth_ui_app/services/approval_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -45,46 +47,57 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> with SingleTickerProv
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1E293B)),
-          onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          "Approval Engine & Requests",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2563EB),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF2563EB),
-          tabs: [
-            Tab(text: "Pending (${pendingList.length})"),
-            Tab(text: "Approved (${approvedList.length})"),
-            Tab(text: "Rejected (${rejectedList.length})"),
+      body: SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              title: "Approvals",
+              onBack: widget.onBack ?? () => Navigator.of(context).maybePop(),
+              action: AppHeaderActionBadge.refresh(
+                onTap: _loadRequests,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+              child: CustomSegmentedTabBar(
+                controller: _tabController,
+                tabs: [
+                  SegmentTab(
+                    label: "Pending",
+                    icon: const Icon(Iconsax.clock),
+                    badgeCount: pendingList.length,
+                  ),
+                  SegmentTab(
+                    label: "Approved",
+                    icon: const Icon(Iconsax.verify),
+                    badgeCount: approvedList.length,
+                  ),
+                  SegmentTab(
+                    label: "Rejected",
+                    icon: const Icon(Iconsax.close_circle),
+                    badgeCount: rejectedList.length,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Official vs Pending vs Estimated Summary Banner
+            _buildOfficialVsPendingBanner(),
+
+            // Tab Bar View List
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildRequestList(pendingList, isPending: true),
+                  _buildRequestList(approvedList),
+                  _buildRequestList(rejectedList),
+                ],
+              ),
+            ),
           ],
         ),
-      ),
-      body: Column(
-        children: [
-          // Official vs Pending vs Estimated Summary Banner
-          _buildOfficialVsPendingBanner(),
-
-          // Tab Bar View List
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildRequestList(pendingList, isPending: true),
-                _buildRequestList(approvedList),
-                _buildRequestList(rejectedList),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -103,6 +103,12 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
                 )
               : null,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          filled: false,
           contentPadding: widget.contentPadding ??
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           isDense: true,

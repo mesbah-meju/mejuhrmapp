@@ -35,6 +35,7 @@ class BranchTaskModel {
   final String taskName;
   final String? description;
   final int? branchId;
+  final bool isAdditionalTask;
   final bool isCompleted;
   final String status; // 'pending', 'completed', 'approved', 'rejected'
   final bool completedByMe;
@@ -53,6 +54,7 @@ class BranchTaskModel {
     required this.taskName,
     this.description,
     this.branchId,
+    this.isAdditionalTask = false,
     this.isCompleted = false,
     this.status = 'pending',
     this.completedByMe = false,
@@ -76,6 +78,7 @@ class BranchTaskModel {
       taskName: json['task_name']?.toString() ?? json['name']?.toString() ?? 'Task',
       description: json['description']?.toString(),
       branchId: json['branch_id'] is int ? json['branch_id'] : int.tryParse(json['branch_id']?.toString() ?? ''),
+      isAdditionalTask: json['is_additional_task'] == true || json['is_additional_task'] == 1,
       isCompleted: completed,
       status: stat,
       completedByMe: json['completed_by_me'] == true || json['completed_by_me'] == 1,
@@ -96,6 +99,7 @@ class BranchTaskModel {
         'task_name': taskName,
         'description': description,
         'branch_id': branchId,
+        'is_additional_task': isAdditionalTask,
         'is_completed': isCompleted,
         'status': status,
         'completed_by_me': completedByMe,
@@ -111,6 +115,7 @@ class BranchTaskModel {
       };
 
   BranchTaskModel copyWith({
+    bool? isAdditionalTask,
     bool? isCompleted,
     String? status,
     bool? completedByMe,
@@ -129,6 +134,7 @@ class BranchTaskModel {
       taskName: taskName,
       description: description,
       branchId: branchId,
+      isAdditionalTask: isAdditionalTask ?? this.isAdditionalTask,
       isCompleted: isCompleted ?? this.isCompleted,
       status: status ?? this.status,
       completedByMe: completedByMe ?? this.completedByMe,
@@ -147,6 +153,9 @@ class BranchTaskModel {
 
 class TodayTasksResponse {
   final bool isClockedIn;
+  final bool hasClockedOut;
+  final bool canCompleteTasks;
+  final bool canAddAdditionalTask;
   final bool canViewTasks;
   final String? message;
   final int? branchId;
@@ -156,6 +165,9 @@ class TodayTasksResponse {
 
   TodayTasksResponse({
     required this.isClockedIn,
+    this.hasClockedOut = false,
+    this.canCompleteTasks = true,
+    this.canAddAdditionalTask = true,
     this.canViewTasks = true,
     this.message,
     this.branchId,
@@ -173,10 +185,14 @@ class TodayTasksResponse {
     }
 
     final bool clocked = json['is_clocked_in'] == true || json['is_clocked_in'] == 1;
+    final bool clockedOut = json['has_clocked_out'] == true || json['has_clocked_out'] == 1;
 
     return TodayTasksResponse(
       isClockedIn: clocked,
-      canViewTasks: json['can_view_tasks'] != false && clocked,
+      hasClockedOut: clockedOut,
+      canCompleteTasks: json['can_complete_tasks'] == true || (json['can_complete_tasks'] == null && clocked),
+      canAddAdditionalTask: json['can_add_additional_task'] == true || (json['can_add_additional_task'] == null && clocked && !clockedOut),
+      canViewTasks: true,
       message: json['message']?.toString(),
       branchId: json['branch_id'] is int ? json['branch_id'] : int.tryParse(json['branch_id']?.toString() ?? ''),
       branchName: json['branch_name']?.toString(),
@@ -189,6 +205,9 @@ class TodayTasksResponse {
 
   Map<String, dynamic> toJson() => {
         'is_clocked_in': isClockedIn,
+        'has_clocked_out': hasClockedOut,
+        'can_complete_tasks': canCompleteTasks,
+        'can_add_additional_task': canAddAdditionalTask,
         'can_view_tasks': canViewTasks,
         'message': message,
         'branch_id': branchId,
@@ -322,6 +341,147 @@ class TaskHistoryResponse {
   Map<String, dynamic> toJson() => {
         'pagination': pagination.toJson(),
         'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+// =========================================================================
+// STAFF TASK REPORT & ANALYTICS MODELS
+// =========================================================================
+class TaskReportEmployeeModel {
+  final int id;
+  final String name;
+  final String? employeeCode;
+  final String? department;
+  final String? designation;
+  final String? branch;
+
+  TaskReportEmployeeModel({
+    required this.id,
+    required this.name,
+    this.employeeCode,
+    this.department,
+    this.designation,
+    this.branch,
+  });
+
+  factory TaskReportEmployeeModel.fromJson(Map<String, dynamic> json) => TaskReportEmployeeModel(
+        id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+        name: json['name']?.toString() ?? 'Staff',
+        employeeCode: json['employee_code']?.toString(),
+        department: json['department']?.toString(),
+        designation: json['designation']?.toString(),
+        branch: json['branch']?.toString(),
+      );
+}
+
+class TaskReportPeriodModel {
+  final String startDate;
+  final String endDate;
+
+  TaskReportPeriodModel({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  factory TaskReportPeriodModel.fromJson(Map<String, dynamic> json) => TaskReportPeriodModel(
+        startDate: json['start_date']?.toString() ?? '',
+        endDate: json['end_date']?.toString() ?? '',
+      );
+}
+
+class StaffTaskReportSummaryModel {
+  final int totalCompletions;
+  final int totalApproved;
+  final int totalRejected;
+  final int totalPendingApproval;
+  final int additionalTasksCreated;
+
+  StaffTaskReportSummaryModel({
+    this.totalCompletions = 0,
+    this.totalApproved = 0,
+    this.totalRejected = 0,
+    this.totalPendingApproval = 0,
+    this.additionalTasksCreated = 0,
+  });
+
+  factory StaffTaskReportSummaryModel.fromJson(Map<String, dynamic> json) => StaffTaskReportSummaryModel(
+        totalCompletions: json['total_completions'] is int ? json['total_completions'] : int.tryParse(json['total_completions']?.toString() ?? '0') ?? 0,
+        totalApproved: json['total_approved'] is int ? json['total_approved'] : int.tryParse(json['total_approved']?.toString() ?? '0') ?? 0,
+        totalRejected: json['total_rejected'] is int ? json['total_rejected'] : int.tryParse(json['total_rejected']?.toString() ?? '0') ?? 0,
+        totalPendingApproval: json['total_pending_approval'] is int ? json['total_pending_approval'] : int.tryParse(json['total_pending_approval']?.toString() ?? '0') ?? 0,
+        additionalTasksCreated: json['additional_tasks_created'] is int ? json['additional_tasks_created'] : int.tryParse(json['additional_tasks_created']?.toString() ?? '0') ?? 0,
+      );
+}
+
+class StaffTaskReportResponse {
+  final TaskReportEmployeeModel? employee;
+  final TaskReportPeriodModel? period;
+  final StaffTaskReportSummaryModel summary;
+  final List<TaskHistoryItemModel> completions;
+
+  StaffTaskReportResponse({
+    this.employee,
+    this.period,
+    required this.summary,
+    required this.completions,
+  });
+
+  factory StaffTaskReportResponse.fromJson(Map<String, dynamic> json) {
+    List<TaskHistoryItemModel> list = [];
+    if (json['completions'] is List) {
+      list = (json['completions'] as List)
+          .map((e) => TaskHistoryItemModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return StaffTaskReportResponse(
+      employee: json['employee'] is Map ? TaskReportEmployeeModel.fromJson(Map<String, dynamic>.from(json['employee'])) : null,
+      period: json['period'] is Map ? TaskReportPeriodModel.fromJson(Map<String, dynamic>.from(json['period'])) : null,
+      summary: json['summary'] is Map ? StaffTaskReportSummaryModel.fromJson(Map<String, dynamic>.from(json['summary'])) : StaffTaskReportSummaryModel(),
+      completions: list,
+    );
+  }
+}
+
+// =========================================================================
+// MANAGER TASK MANAGEMENT & REPORT MODELS
+// =========================================================================
+class ManagerBranchTaskModel {
+  final int id;
+  final String taskName;
+  final String? description;
+  final int? branchId;
+  final String? branchName;
+  final bool isActive;
+  final String? createdAt;
+
+  ManagerBranchTaskModel({
+    required this.id,
+    required this.taskName,
+    this.description,
+    this.branchId,
+    this.branchName,
+    this.isActive = true,
+    this.createdAt,
+  });
+
+  factory ManagerBranchTaskModel.fromJson(Map<String, dynamic> json) => ManagerBranchTaskModel(
+        id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+        taskName: json['task_name']?.toString() ?? json['name']?.toString() ?? 'Branch Task',
+        description: json['description']?.toString(),
+        branchId: json['branch_id'] is int ? json['branch_id'] : int.tryParse(json['branch_id']?.toString() ?? ''),
+        branchName: json['branch_name']?.toString(),
+        isActive: json['is_active'] == true || json['is_active'] == 1,
+        createdAt: json['created_at']?.toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'task_name': taskName,
+        'description': description,
+        'branch_id': branchId,
+        'branch_name': branchName,
+        'is_active': isActive,
       };
 }
 
@@ -466,4 +626,106 @@ class ManagerTaskCompletionsResponse {
         'pagination': pagination.toJson(),
         'items': items.map((e) => e.toJson()).toList(),
       };
+}
+
+class ManagerTaskReportEmployeeModel {
+  final String employeeId;
+  final int userId;
+  final String name;
+  final String? email;
+  final String? avatar;
+  final String? department;
+  final String? designation;
+  final String? branch;
+  final int totalCompletions;
+  final int approvedCount;
+  final int rejectedCount;
+  final int pendingReviewCount;
+  final int additionalTasksLogged;
+
+  ManagerTaskReportEmployeeModel({
+    required this.employeeId,
+    required this.userId,
+    required this.name,
+    this.email,
+    this.avatar,
+    this.department,
+    this.designation,
+    this.branch,
+    this.totalCompletions = 0,
+    this.approvedCount = 0,
+    this.rejectedCount = 0,
+    this.pendingReviewCount = 0,
+    this.additionalTasksLogged = 0,
+  });
+
+  factory ManagerTaskReportEmployeeModel.fromJson(Map<String, dynamic> json) => ManagerTaskReportEmployeeModel(
+        employeeId: json['employee_id']?.toString() ?? '',
+        userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id']?.toString() ?? '0') ?? 0,
+        name: json['name']?.toString() ?? '',
+        email: json['email']?.toString(),
+        avatar: json['avatar']?.toString(),
+        department: json['department']?.toString(),
+        designation: json['designation']?.toString(),
+        branch: json['branch']?.toString(),
+        totalCompletions: json['total_completions'] is int ? json['total_completions'] : int.tryParse(json['total_completions']?.toString() ?? '0') ?? 0,
+        approvedCount: json['approved_count'] is int ? json['approved_count'] : int.tryParse(json['approved_count']?.toString() ?? '0') ?? 0,
+        rejectedCount: json['rejected_count'] is int ? json['rejected_count'] : int.tryParse(json['rejected_count']?.toString() ?? '0') ?? 0,
+        pendingReviewCount: json['pending_review_count'] is int ? json['pending_review_count'] : int.tryParse(json['pending_review_count']?.toString() ?? '0') ?? 0,
+        additionalTasksLogged: json['additional_tasks_logged'] is int ? json['additional_tasks_logged'] : int.tryParse(json['additional_tasks_logged']?.toString() ?? '0') ?? 0,
+      );
+}
+
+class ManagerTaskReportSummaryModel {
+  final int totalEmployeesMonitored;
+  final int totalCompletions;
+  final int totalApproved;
+  final int totalRejected;
+  final int totalPendingReview;
+  final int totalAdditionalTasksCreated;
+
+  ManagerTaskReportSummaryModel({
+    this.totalEmployeesMonitored = 0,
+    this.totalCompletions = 0,
+    this.totalApproved = 0,
+    this.totalRejected = 0,
+    this.totalPendingReview = 0,
+    this.totalAdditionalTasksCreated = 0,
+  });
+
+  factory ManagerTaskReportSummaryModel.fromJson(Map<String, dynamic> json) => ManagerTaskReportSummaryModel(
+        totalEmployeesMonitored: json['total_employees_monitored'] is int ? json['total_employees_monitored'] : int.tryParse(json['total_employees_monitored']?.toString() ?? '0') ?? 0,
+        totalCompletions: json['total_completions'] is int ? json['total_completions'] : int.tryParse(json['total_completions']?.toString() ?? '0') ?? 0,
+        totalApproved: json['total_approved'] is int ? json['total_approved'] : int.tryParse(json['total_approved']?.toString() ?? '0') ?? 0,
+        totalRejected: json['total_rejected'] is int ? json['total_rejected'] : int.tryParse(json['total_rejected']?.toString() ?? '0') ?? 0,
+        totalPendingReview: json['total_pending_review'] is int ? json['total_pending_review'] : int.tryParse(json['total_pending_review']?.toString() ?? '0') ?? 0,
+        totalAdditionalTasksCreated: json['total_additional_tasks_created'] is int ? json['total_additional_tasks_created'] : int.tryParse(json['total_additional_tasks_created']?.toString() ?? '0') ?? 0,
+      );
+}
+
+class ManagerTaskReportResponse {
+  final TaskReportPeriodModel? period;
+  final ManagerTaskReportSummaryModel summary;
+  final List<ManagerTaskReportEmployeeModel> employees;
+
+  ManagerTaskReportResponse({
+    this.period,
+    required this.summary,
+    required this.employees,
+  });
+
+  factory ManagerTaskReportResponse.fromJson(Map<String, dynamic> json) {
+    List<ManagerTaskReportEmployeeModel> list = [];
+    if (json['employees'] is List) {
+      list = (json['employees'] as List)
+          .map((e) => ManagerTaskReportEmployeeModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return ManagerTaskReportResponse(
+      period: json['period'] is Map ? TaskReportPeriodModel.fromJson(Map<String, dynamic>.from(json['period'])) : null,
+      summary: json['summary'] is Map ? ManagerTaskReportSummaryModel.fromJson(Map<String, dynamic>.from(json['summary'])) : ManagerTaskReportSummaryModel(),
+      employees: list,
+    );
+  }
 }

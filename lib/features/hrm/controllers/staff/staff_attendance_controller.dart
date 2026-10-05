@@ -1,14 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:auth_ui_app/core/repositories/attendance_repository.dart';
 import 'package:auth_ui_app/features/hrm/models/attendance_model.dart';
 import 'package:auth_ui_app/features/hrm/models/auth_response_model.dart';
 import 'package:auth_ui_app/features/hrm/models/geofence_model.dart';
-import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/services/hrm_api_service.dart';
-import 'package:auth_ui_app/services/offline_storage_service.dart';
-import 'package:auth_ui_app/services/sync_controller.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
 class AttendanceController extends GetxController {
@@ -22,11 +21,13 @@ class AttendanceController extends GetxController {
   // Observables
   final RxBool isLoadingToday = false.obs;
   final RxBool isLoadingHistory = false.obs;
+  final RxBool isLoadingReport = false.obs;
   final RxBool isClocking = false.obs;
 
   final Rx<TodayAttendanceStatus?> todayStatus = Rx<TodayAttendanceStatus?>(null);
   final Rx<AttendanceSummaryModel?> historySummary = Rx<AttendanceSummaryModel?>(null);
   final RxList<AttendanceRecord> historyRecords = <AttendanceRecord>[].obs;
+  final Rx<StaffAttendanceReportResponse?> staffReport = Rx<StaffAttendanceReportResponse?>(null);
 
   final RxInt selectedMonth = DateTime.now().month.obs;
   final RxInt selectedYear = DateTime.now().year.obs;
@@ -42,6 +43,9 @@ class AttendanceController extends GetxController {
   final Rx<TenantLocationModel?> activeTenantLocation = Rx<TenantLocationModel?>(null);
 
   Timer? _liveClockTimer;
+  StreamSubscription? _todaySubscription;
+  StreamSubscription? _historySubscription;
+
   final RxString liveCurrentTime = "".obs;
   final RxString liveElapsedTime = "0.00 hours".obs;
 
@@ -49,13 +53,15 @@ class AttendanceController extends GetxController {
   void onInit() {
     super.onInit();
     _startLiveClock();
-    _loadCachedData();
+    _bindDatabaseStreams();
     refreshAll();
   }
 
   @override
   void onClose() {
     _liveClockTimer?.cancel();
+    _todaySubscription?.cancel();
+    _historySubscription?.cancel();
     super.onClose();
   }
 
@@ -93,21 +99,116 @@ class AttendanceController extends GetxController {
     }
   }
 
-  /// Load cached data from local storage for instant offline render
-  void _loadCachedData() {
-    try {
-      final cachedToday = OfflineStorageService.instance.getCache(OfflineStorageService.keyAttendanceCache);
-      if (cachedToday is Map<String, dynamic>) {
-        todayStatus.value = TodayAttendanceStatus.fromJson(cachedToday);
-      }
+  /// Bind reactive Drift SQLite Streams
+  void _bindDatabaseStreams() {
+    // 1. Today Status Stream
+    _todaySubscription = AttendanceRepository.instance.watchTodayStatus().listen((data) {
+      if (data != null) {
+        AttendanceLocationDetail? checkInLoc;
+        if (data.checkInLocationJson != null) {
+          try {
+            checkInLoc = AttendanceLocationDetail.fromJson(
+              jsonDecode(data.checkInLocationJson!) as Map<String, dynamic>,
+            );
+          } catch (_) {}
+        }
 
-      // Check cached tenant locations for geofence evaluation
-      final locations = AuthService.instance.getTenantLocations();
-      if (locations.isNotEmpty) {
-        activeTenantLocation.value = locations.first;
-        _evaluateLocalGeofence(locations);
+        AttendanceBranchDetail? checkInBr;
+        if (data.checkInBranchJson != null) {
+          try {
+            checkInBr = AttendanceBranchDetail.fromJson(
+              jsonDecode(data.checkInBranchJson!) as Map<String, dynamic>,
+            );
+          } catch (_) {}
+        }
+
+        AttendanceShiftDetail? shift;
+        if (data.shiftJson != null) {
+          try {
+            shift = AttendanceShiftDetail.fromJson(
+              jsonDecode(data.shiftJson!) as Map<String, dynamic>,
+            );
+          } catch (_) {}
+        }
+
+        Map<String, String>? workingDays;
+        if (data.workingDaysMapJson != null) {
+          try {
+            workingDays = Map<String, String>.from(
+              jsonDecode(data.workingDaysMapJson!) as Map,
+            );
+          } catch (_) {}
+        }
+
+        todayStatus.value = TodayAttendanceStatus(
+          isClockedIn: data.isClockedIn,
+          canClockIn: data.canClockIn,
+          canClockOut: data.canClockOut,
+          attendanceId: data.attendanceId ?? 0,
+          date: data.date,
+          clockIn: data.clockIn,
+          clockOut: data.clockOut,
+          totalHours: data.totalHours,
+          totalHoursNumeric: data.totalHoursNumeric,
+          breakHours: data.breakHours,
+          overtimeHours: data.overtimeHours,
+          status: data.status,
+          isWorkingDay: data.isWorkingDay,
+          isHoliday: data.isHoliday,
+          holidayName: data.holidayName,
+          isOnLeave: data.isOnLeave,
+          isHalfDayLeave: data.isHalfDayLeave,
+          leaveTitle: data.leaveTitle,
+          checkInLocation: checkInLoc,
+          checkInBranch: checkInBr,
+          shift: shift,
+          workingDaysMap: workingDays ?? const {},
+        );
       }
-    } catch (_) {}
+    });
+
+    // 2. History Stream
+    _bindHistoryStream();
+  }
+
+  void _bindHistoryStream() {
+    _historySubscription?.cancel();
+    _historySubscription = AttendanceRepository.instance
+        .watchMonthlyHistory(selectedMonth.value, selectedYear.value)
+        .listen((records) {
+      final list = records.map((r) {
+        AttendanceLocationDetail? loc;
+        if (r.checkInLocationJson != null) {
+          try {
+            loc = AttendanceLocationDetail.fromJson(
+              jsonDecode(r.checkInLocationJson!) as Map<String, dynamic>,
+            );
+          } catch (_) {}
+        }
+
+        return AttendanceRecord(
+          id: r.serverId ?? 0,
+          date: r.date,
+          clockIn: r.clockIn,
+          clockOut: r.clockOut,
+          status: r.status,
+          calculatedStatus: r.calculatedStatus,
+          isLate: r.isLate,
+          isEarly: r.isEarly,
+          totalHours: r.totalHours,
+          totalHoursNumeric: r.totalHoursNumeric,
+          breakHours: r.breakHours,
+          breakHoursNumeric: r.breakHoursNumeric,
+          overtimeHours: r.overtimeHours,
+          overtimeHoursNumeric: r.overtimeHoursNumeric,
+          overtimeAmount: r.overtimeAmount,
+          notes: r.notes,
+          checkInLocation: loc,
+        );
+      }).toList();
+
+      historyRecords.assignAll(list);
+    });
   }
 
   /// Evaluate local geofence distance against all tenant locations
@@ -139,13 +240,9 @@ class AttendanceController extends GetxController {
   Future<void> fetchTodayStatus() async {
     isLoadingToday.value = true;
     try {
-      final response = await HrmApiService.instance.getTodayAttendance();
-      if (response.isSuccess && response.data != null) {
-        todayStatus.value = response.data;
-        await OfflineStorageService.instance.saveCache(
-          OfflineStorageService.keyAttendanceCache,
-          response.data!.toJson(),
-        );
+      final res = await AttendanceRepository.instance.refreshTodayStatus();
+      if (res != null) {
+        todayStatus.value = res;
       }
     } catch (_) {
     } finally {
@@ -153,29 +250,38 @@ class AttendanceController extends GetxController {
     }
   }
 
-  /// 2. Fetch Monthly Attendance History & Summary
-  Future<void> fetchHistory({int? month, int? year, String? startDate, String? endDate}) async {
+  /// 2. Fetch Monthly Attendance History
+  Future<void> fetchHistory({int? month, int? year}) async {
     isLoadingHistory.value = true;
     try {
       final m = month ?? selectedMonth.value;
       final y = year ?? selectedYear.value;
-      selectedMonth.value = m;
-      selectedYear.value = y;
+      await AttendanceRepository.instance.refreshHistory(month: m, year: y);
 
-      final response = await HrmApiService.instance.getAttendanceHistoryResponse(
-        month: m,
-        year: y,
-        startDate: startDate,
-        endDate: endDate,
-      );
-
-      if (response.isSuccess && response.data != null) {
-        historySummary.value = response.data!.summary;
-        historyRecords.assignAll(response.data!.history);
+      // Also get summary
+      final summaryRes = await HrmApiService.instance.getAttendanceHistoryResponse(month: m, year: y);
+      if (summaryRes.isSuccess && summaryRes.data != null) {
+        historySummary.value = summaryRes.data!.summary;
       }
     } catch (_) {
     } finally {
       isLoadingHistory.value = false;
+    }
+  }
+
+  /// Fetch Comprehensive Monthly Staff Attendance Report
+  Future<void> fetchStaffReport({int? month, int? year}) async {
+    isLoadingReport.value = true;
+    try {
+      final m = month ?? selectedMonth.value;
+      final y = year ?? selectedYear.value;
+      final response = await HrmApiService.instance.getStaffAttendanceReport(month: m, year: y);
+      if (response.isSuccess && response.data != null) {
+        staffReport.value = response.data;
+      }
+    } catch (_) {
+    } finally {
+      isLoadingReport.value = false;
     }
   }
 
@@ -193,7 +299,9 @@ class AttendanceController extends GetxController {
   void changeMonth(int month, int year) {
     selectedMonth.value = month;
     selectedYear.value = year;
+    _bindHistoryStream();
     fetchHistory(month: month, year: year);
+    fetchStaffReport(month: month, year: year);
   }
 
   /// Change history filter tab
@@ -218,162 +326,117 @@ class AttendanceController extends GetxController {
     }
   }
 
-  /// 3. Geofenced Clock In
-  Future<void> clockIn() async {
+  /// 3. Geofenced Clock In (Local-First with SQLite queue)
+  Future<void> clockIn({String? notes}) async {
     if (isClocking.value) return;
 
-    // Check offline mode
-    if (!SyncController.instance.isOnline.value) {
-      await SyncController.instance.enqueueAction(
-        actionType: 'attendance_checkin',
-        payload: {
-          'latitude': currentLat.value,
-          'longitude': currentLng.value,
-          'accuracy': currentAccuracy.value,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-        userMessage: "Clock In saved offline. Will sync automatically when network is restored.",
-      );
-      // Optimistically update today status locally
-      todayStatus.value = TodayAttendanceStatus(
-        isClockedIn: true,
-        canClockIn: false,
-        canClockOut: true,
-        date: DateTime.now().toIso8601String().split('T').first,
-        clockIn: liveCurrentTime.value,
-        status: 'present',
+    // STRICT GEOFENCE ENFORCEMENT: Block check-in when user is not in range
+    if (!isWithinGeofence.value) {
+      Get.snackbar(
+        'Not in Range',
+        'You are not in range of the office location. Check-in is strictly permitted only when in range.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFDC2626),
+        colorText: Colors.white,
+        icon: const Icon(Icons.location_off_rounded, color: Colors.white),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       );
       return;
     }
 
     isClocking.value = true;
-
     try {
-      final response = await HrmApiService.instance.clockIn(
+      await AttendanceRepository.instance.clockIn(
         latitude: currentLat.value,
         longitude: currentLng.value,
         accuracy: currentAccuracy.value,
+        notes: notes,
       );
 
-      isClocking.value = false;
-
-      if (response.isSuccess) {
-        THelperFunctions.showSnackBar(
-          response.message.isNotEmpty ? response.message : "Clocked in successfully!",
-        );
-        // Refresh live data from backend
-        await fetchTodayStatus();
-        await fetchHistory();
-      } else {
-        // Business logic rejection handling (Outside geofence, Holiday, On-Leave, Non-working day, IP restriction)
-        final msg = response.message;
-        Get.snackbar(
-          'Clock In Restricted',
-          msg,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent.withValues(alpha: 0.92),
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-          icon: const Icon(Icons.location_off_rounded, color: Colors.white),
-        );
-      }
+      THelperFunctions.showSnackBar("Clock In recorded! Saved locally & syncing with cloud.");
     } catch (e) {
-      isClocking.value = false;
       Get.snackbar(
-        'Connection Error',
-        'Could not connect to attendance server. Please try again.',
+        'Clock In Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange.withValues(alpha: 0.9),
+        backgroundColor: Colors.redAccent.withValues(alpha: 0.92),
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
       );
+    } finally {
+      isClocking.value = false;
     }
   }
 
-  /// 4. Clock Out & Auto-Calculation
-  Future<void> clockOut() async {
+  /// 4. Clock Out (Local-First with SQLite queue)
+  Future<void> clockOut({String? notes}) async {
     if (isClocking.value) return;
 
-    // Check offline mode
-    if (!SyncController.instance.isOnline.value) {
-      await SyncController.instance.enqueueAction(
-        actionType: 'attendance_checkout',
-        payload: {
-          'latitude': currentLat.value,
-          'longitude': currentLng.value,
-          'accuracy': currentAccuracy.value,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-        userMessage: "Clock Out saved offline. Will sync automatically when network is restored.",
-      );
-      // Optimistically update today status locally
-      todayStatus.value = TodayAttendanceStatus(
-        isClockedIn: false,
-        canClockIn: true,
-        canClockOut: false,
-        date: DateTime.now().toIso8601String().split('T').first,
-        clockOut: liveCurrentTime.value,
-        status: 'present',
+    // STRICT GEOFENCE ENFORCEMENT: Block check-out when user is not in range
+    if (!isWithinGeofence.value) {
+      Get.snackbar(
+        'Not in Range',
+        'You are not in range of the office location. Check-out is strictly permitted only when in range.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFDC2626),
+        colorText: Colors.white,
+        icon: const Icon(Icons.location_off_rounded, color: Colors.white),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       );
       return;
     }
 
     isClocking.value = true;
-
     try {
-      final response = await HrmApiService.instance.clockOut(
+      await AttendanceRepository.instance.clockOut(
         latitude: currentLat.value,
         longitude: currentLng.value,
         accuracy: currentAccuracy.value,
+        notes: notes,
       );
 
-      isClocking.value = false;
-
-      if (response.isSuccess) {
-        final record = response.data;
-        String durationMsg = record?.totalHours ?? "";
-        String overtimeMsg = (record != null && record.overtimeHoursNumeric > 0)
-            ? " (Overtime: ${record.overtimeHours})"
-            : "";
-
-        THelperFunctions.showSnackBar(
-          "Clocked out successfully! Worked: $durationMsg$overtimeMsg",
-        );
-        // Refresh live status and history
-        await fetchTodayStatus();
-        await fetchHistory();
-      } else {
-        Get.snackbar(
-          'Clock Out Failed',
-          response.message,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent.withValues(alpha: 0.92),
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-        );
-      }
+      THelperFunctions.showSnackBar("Clock Out recorded! Calculating work shift duration.");
     } catch (e) {
-      isClocking.value = false;
       Get.snackbar(
-        'Connection Error',
-        'Could not connect to attendance server. Please try again.',
+        'Clock Out Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange.withValues(alpha: 0.9),
+        backgroundColor: Colors.redAccent.withValues(alpha: 0.92),
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
       );
+    } finally {
+      isClocking.value = false;
     }
   }
 
   /// Toggle check in / out action based on current state
-  Future<void> toggleClockInOut() async {
+  Future<void> toggleClockInOut({String? notes}) async {
     final status = todayStatus.value;
-    if (status != null && status.isClockedIn) {
-      await clockOut();
+    final isClockedIn = status != null && status.isClockedIn;
+
+    // STRICT GEOFENCE ENFORCEMENT: Block both check-in and check-out when not in range
+    if (!isWithinGeofence.value) {
+      final action = isClockedIn ? "Check Out" : "Check In";
+      Get.snackbar(
+        '$action Blocked',
+        'You are not in range of the office location. $action is strictly permitted only when in range.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFDC2626),
+        colorText: Colors.white,
+        icon: const Icon(Icons.location_off_rounded, color: Colors.white),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+
+    if (isClockedIn) {
+      await clockOut(notes: notes);
     } else {
-      await clockIn();
+      await clockIn(notes: notes);
     }
   }
 }
