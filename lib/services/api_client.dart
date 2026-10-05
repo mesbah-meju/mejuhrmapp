@@ -262,7 +262,12 @@ class ApiClient {
     if (error is TimeoutException) {
       msg = "Request timed out. The server is taking too long to respond.";
     } else if (error != null) {
-      msg = error.toString();
+      final errStr = error.toString();
+      if (errStr.contains('Failed to fetch') || errStr.contains('ClientException')) {
+        msg = "Unable to connect to server. Check your network or CORS configuration.";
+      } else {
+        msg = errStr;
+      }
     }
 
     return ApiResponse<T>(

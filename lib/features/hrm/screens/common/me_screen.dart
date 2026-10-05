@@ -6,7 +6,9 @@ import 'package:auth_ui_app/features/hrm/screens/common/devices_sessions_screen.
 import 'package:auth_ui_app/features/hrm/screens/common/notifications_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/common/sync_center_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_approvals_screen.dart';
+import 'package:auth_ui_app/features/hrm/screens/staff/staff_attendance_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_timeline_screen.dart';
+import 'package:auth_ui_app/features/hrm/widgets/apply_leave_sheet.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/utils/helpers/helper_functions.dart';
 
@@ -595,6 +597,55 @@ class _MeScreenState extends State<MeScreen> {
                     subtitle: "Registered devices & session revoke",
                     isLast: true,
                     onTap: () => Get.to(() => const DevicesSessionsScreen()),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // 2.8 Leave & Self-Service Module
+              _buildSectionCard(
+                title: "Leave & Employee Self-Service",
+                icon: Icons.flight_takeoff_rounded,
+                iconColor: const Color(0xFF059669),
+                items: [
+                  _buildSectionItem(
+                    icon: Icons.event_available_rounded,
+                    iconColor: const Color(0xFF2563EB),
+                    title: "Complete Leave Module",
+                    subtitle: "Leave balance, history & active requests",
+                    onTap: () => Get.to(() => const ApprovalsScreen()),
+                  ),
+                  _buildSectionItem(
+                    icon: Icons.add_circle_outline_rounded,
+                    iconColor: const Color(0xFF059669),
+                    title: "Apply for Leave",
+                    subtitle: "Submit new leave application to manager",
+                    onTap: () => ApplyLeaveSheet.show(context),
+                  ),
+                  _buildSectionItem(
+                    icon: Icons.calendar_month_rounded,
+                    iconColor: const Color(0xFF7C3AED),
+                    title: "Attendance History",
+                    subtitle: "Monthly check-in/out logs & punch records",
+                    onTap: () => Get.to(() => const AttendanceScreen()),
+                  ),
+                  _buildSectionItem(
+                    icon: Icons.folder_shared_outlined,
+                    iconColor: const Color(0xFFD97706),
+                    title: "Documents & Certificates",
+                    subtitle: "NID, contract, payslips & tax documents",
+                    isLast: true,
+                    onTap: () {
+                      _showInfoSheet(
+                        title: "Employee Documents",
+                        fields: [
+                          {'label': 'National ID (NID)', 'value': 'NID-1996148293710 (Verified)'},
+                          {'label': 'Employment Contract', 'value': 'Full-time Permanent Contract (Signed)'},
+                          {'label': 'Tax Certificate', 'value': 'TIN-4829104829 (FY 2025-26)'},
+                          {'label': 'Latest Payslip', 'value': 'September 2026 Payslip (Generated)'},
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),

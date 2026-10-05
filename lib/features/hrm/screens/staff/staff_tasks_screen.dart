@@ -19,6 +19,7 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
   final TaskController controller = TaskController.instance;
+  int _primaryModuleIndex = 0; // 0 = Tasks, 1 = Attendance
   int _activeTabIndex = 0; // 0 = Daily Tasks, 1 = General Tasks, 2 = History
 
   @override
@@ -29,9 +30,100 @@ class _TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_primaryModuleIndex == 1) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+                child: Column(
+                  children: [
+                    _buildTopHeader(),
+                    const SizedBox(height: 12),
+                    _buildPrimaryModuleSwitcher(),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: AttendanceScreen(onBackToDashboard: widget.onBackToDashboard),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_activeTabIndex == 2) return _buildHistoryView();
     if (_activeTabIndex == 1) return _buildGeneralTasksView();
     return _buildTodayView();
+  }
+
+  // =========================================================================
+  // PRIMARY MODULE SWITCHER (TASKS / ATTENDANCE)
+  // =========================================================================
+  Widget _buildPrimaryModuleSwitcher() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFCBD5E1).withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          _buildPrimaryTabItem(0, "Tasks", Iconsax.task_square),
+          _buildPrimaryTabItem(1, "Attendance", Iconsax.calendar_tick),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrimaryTabItem(int index, String title, IconData icon) {
+    final isSelected = _primaryModuleIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _primaryModuleIndex = index);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // =========================================================================
@@ -74,6 +166,10 @@ class _TasksScreenState extends State<TasksScreen> {
                 children: [
                   // Top Header
                   _buildTopHeader(),
+                  const SizedBox(height: 14),
+
+                  // Primary Module Switcher (Tasks vs Attendance)
+                  _buildPrimaryModuleSwitcher(),
                   const SizedBox(height: 14),
 
                   // Segmented Tabs (Daily Tasks / General Tasks)

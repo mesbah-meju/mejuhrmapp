@@ -4,14 +4,15 @@ import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 
 import 'package:get/get.dart';
+import 'package:auth_ui_app/common/widgets/navigation/hrm_bottom_nav_bar.dart';
 import 'package:auth_ui_app/common/widgets/sync/global_sync_indicator.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
 import 'package:auth_ui_app/features/hrm/screens/common/me_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/common/notifications_screen.dart';
-import 'package:auth_ui_app/features/hrm/screens/staff/staff_attendance_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_payroll_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_targets_screen.dart';
 import 'package:auth_ui_app/features/hrm/screens/staff/staff_tasks_screen.dart';
+import 'package:auth_ui_app/features/hrm/widgets/apply_leave_sheet.dart';
 import 'package:auth_ui_app/services/auth_service.dart';
 import 'package:auth_ui_app/services/sync_controller.dart';
 
@@ -24,7 +25,7 @@ class HrmDashboardScreen extends StatefulWidget {
 
 class _HrmDashboardScreenState extends State<HrmDashboardScreen>
     with TickerProviderStateMixin {
-  int _currentNavIndex = 0;
+  int _currentNavIndex = 2; // Home permanently in center (default selected)
   String _selectedEarningsPeriod = 'This Month';
 
   @override
@@ -83,24 +84,22 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
   Widget build(BuildContext context) {
     Widget activeBody;
     switch (_currentNavIndex) {
-      case 1:
-        activeBody = TasksScreen(onBackToDashboard: () => _setNav(0));
+      case 0:
+        activeBody = TargetsScreen(onBackToDashboard: () => _setNav(2));
         break;
-      case 2:
-        activeBody = AttendanceScreen(onBackToDashboard: () => _setNav(0));
+      case 1:
+        activeBody = PayrollScreen(onBackToDashboard: () => _setNav(2));
         break;
       case 3:
-        activeBody = TargetsScreen(onBackToDashboard: () => _setNav(0));
+        activeBody = TasksScreen(onBackToDashboard: () => _setNav(2));
         break;
       case 4:
-        activeBody = PayrollScreen(onBackToDashboard: () => _setNav(0));
-        break;
-      case 5:
         activeBody = MeScreen(
-          onBackToDashboard: () => _setNav(0),
+          onBackToDashboard: () => _setNav(2),
           onNavigateToTab: (index) => _setNav(index),
         );
         break;
+      case 2:
       default:
         activeBody = _buildDashboardHome();
         break;
@@ -142,6 +141,10 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                 children: [
                   // 1. Performance Overview Section
                   _buildPerformanceOverviewCard(),
+                  const SizedBox(height: 16),
+
+                  // 1.5 Home Quick Actions Bar (Apply Leave + Key Modules)
+                  _buildQuickActionsGrid(),
                   const SizedBox(height: 16),
 
                   // 2. Attendance Section
@@ -186,7 +189,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
         children: [
           // Avatar → navigates to Me tab
           GestureDetector(
-            onTap: () => _setNav(5),
+            onTap: () => _setNav(4),
             child: Container(
               width: 44,
               height: 44,
@@ -456,7 +459,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     InkWell(
-                      onTap: () => _setNav(2),
+                      onTap: () => _setNav(3),
                       borderRadius: BorderRadius.circular(10),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -489,7 +492,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                       final isClocked = status?.isClockedIn ?? false;
 
                       return InkWell(
-                        onTap: () => _setNav(2),
+                        onTap: () => _setNav(3),
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -544,7 +547,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                   children: [
                     // Today Status
                     InkWell(
-                      onTap: () => _setNav(2),
+                      onTap: () => _setNav(3),
                       borderRadius: BorderRadius.circular(8),
                       child: Obx(() {
                         final status = AttendanceController.instance.todayStatus.value;
@@ -785,7 +788,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                         ),
                       const SizedBox(width: 8),
                       InkWell(
-                        onTap: () => setState(() => _currentNavIndex = 1),
+                        onTap: () => _setNav(3),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -951,7 +954,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                     children: [
                       Expanded(
                         child: InkWell(
-                          onTap: () => setState(() => _currentNavIndex = 3),
+                          onTap: () => _setNav(0),
                           borderRadius: BorderRadius.circular(10),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -1018,7 +1021,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                         ),
                       if (pendingCount > 0) const SizedBox(width: 8),
                       InkWell(
-                        onTap: () => setState(() => _currentNavIndex = 3),
+                        onTap: () => _setNav(0),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1192,7 +1195,7 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
                   children: [
                     Expanded(
                       child: InkWell(
-                        onTap: () => setState(() => _currentNavIndex = 4),
+                        onTap: () => _setNav(1),
                         borderRadius: BorderRadius.circular(10),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1368,76 +1371,144 @@ class _HrmDashboardScreenState extends State<HrmDashboardScreen>
   }
 
   // ==========================================
-  // BOTTOM NAVIGATION BAR
+  // HOME QUICK ACTIONS GRID (APPLY LEAVE + CORE SHORTCUTS)
   // ==========================================
-  Widget _buildBottomNavigationBar() {
+  Widget _buildQuickActionsGrid() {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "QUICK ACTIONS",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, Icons.home_outlined, "Dashboard"),
-              _buildNavItem(1, Icons.assignment_rounded, Icons.assignment_outlined, "Tasks"),
-              _buildNavItem(2, Icons.calendar_today_rounded, Icons.calendar_today_outlined, "Attendance"),
-              _buildNavItem(3, Iconsax.radar, Iconsax.radar, "Targets"),
-              _buildNavItem(4, Icons.credit_card_rounded, Icons.credit_card_outlined, "Payroll"),
-              _buildNavItem(5, Icons.person_rounded, Icons.person_outline_rounded, "Me"),
+              _buildQuickActionButton(
+                icon: Iconsax.calendar_add,
+                label: "Apply Leave",
+                color: const Color(0xFF2563EB),
+                bg: const Color(0xFFEFF6FF),
+                onTap: () => ApplyLeaveSheet.show(context),
+              ),
+              _buildQuickActionButton(
+                icon: Iconsax.clock,
+                label: "Attendance",
+                color: const Color(0xFF059669),
+                bg: const Color(0xFFECFDF5),
+                onTap: () => _setNav(3), // To-Dos
+              ),
+              _buildQuickActionButton(
+                icon: Iconsax.radar_2,
+                label: "Targets",
+                color: const Color(0xFFDC2626),
+                bg: const Color(0xFFFEF2F2),
+                onTap: () => _setNav(0), // Targets
+              ),
+              _buildQuickActionButton(
+                icon: Iconsax.wallet_money,
+                label: "Payroll",
+                color: const Color(0xFFD97706),
+                bg: const Color(0xFFFFFBEB),
+                onTap: () => _setNav(1), // Payroll
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label) {
-    final isSelected = _currentNavIndex == index;
-
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color bg,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      onTap: () => _setNav(index),
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : inactiveIcon,
-              color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-              size: 22,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 3),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 180),
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-              ),
-              child: Text(label),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF334155),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  // ==========================================
+  // REDESIGNED LIGHTWEIGHT 5-ITEM BOTTOM NAVIGATION BAR
+  // ==========================================
+  Widget _buildBottomNavigationBar() {
+    return HrmBottomNavBar(
+      currentIndex: _currentNavIndex,
+      onTap: _setNav,
+      items: const [
+        HrmNavItem(
+          label: "Targets",
+          activeIcon: Icons.track_changes_rounded,
+          inactiveIcon: Icons.track_changes_outlined,
+        ),
+        HrmNavItem(
+          label: "Payroll",
+          activeIcon: Icons.account_balance_wallet_rounded,
+          inactiveIcon: Icons.account_balance_wallet_outlined,
+        ),
+        HrmNavItem(
+          label: "Home",
+          activeIcon: Icons.home_rounded,
+          inactiveIcon: Icons.home_outlined,
+        ),
+        HrmNavItem(
+          label: "To-Dos",
+          activeIcon: Icons.assignment_turned_in_rounded,
+          inactiveIcon: Icons.assignment_turned_in_outlined,
+        ),
+        HrmNavItem(
+          label: "Me",
+          activeIcon: Icons.person_rounded,
+          inactiveIcon: Icons.person_outline_rounded,
+        ),
+      ],
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:auth_ui_app/common/widgets/navigation/hrm_bottom_nav_bar.dart';
+
 import 'package:auth_ui_app/common/widgets/sync/global_sync_indicator.dart';
 import 'package:auth_ui_app/features/authentication/screens/login/login.dart';
 import 'package:auth_ui_app/features/hrm/controllers/controllers.dart';
@@ -31,7 +33,7 @@ class ManagerDashboardScreen extends StatefulWidget {
 }
 
 class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
-  int _currentNavIndex = 0;
+  int _currentNavIndex = 2; // Home permanently in center (default selected)
   final ManagerDashboardController dashboardController = ManagerDashboardController.instance;
   final PayrollService _payrollService = PayrollService.instance;
 
@@ -63,31 +65,31 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   Widget build(BuildContext context) {
     Widget activeBody;
     switch (_currentNavIndex) {
-      case 1:
-        activeBody = ManagerTeamScreen(onBack: () => setState(() => _currentNavIndex = 0));
+      case 0:
+        activeBody = ManagerTeamScreen(onBack: () => setState(() => _currentNavIndex = 2));
         break;
-      case 2:
-        activeBody = ManagerAttendanceScreen(onBack: () => setState(() => _currentNavIndex = 0));
+      case 1:
+        activeBody = ManagerApprovalsScreen(onBack: () => setState(() => _currentNavIndex = 2));
         break;
       case 3:
-        activeBody = ManagerApprovalsScreen(onBack: () => setState(() => _currentNavIndex = 0));
+        activeBody = ManagerTargetsScreen(onBack: () => setState(() => _currentNavIndex = 2));
         break;
       case 4:
-        activeBody = ManagerTargetsScreen(onBack: () => setState(() => _currentNavIndex = 0));
-        break;
-      case 5:
         activeBody = MeScreen(
-          onBackToDashboard: () => setState(() => _currentNavIndex = 0),
+          onBackToDashboard: () => setState(() => _currentNavIndex = 2),
           onNavigateToTab: (index) => setState(() => _currentNavIndex = index),
         );
         break;
+      case 5:
+        activeBody = ManagerAttendanceScreen(onBack: () => setState(() => _currentNavIndex = 2));
+        break;
       case 6:
-        activeBody = ManagerTasksScreen(onBack: () => setState(() => _currentNavIndex = 0));
+        activeBody = ManagerTasksScreen(onBack: () => setState(() => _currentNavIndex = 2));
         break;
       case 7:
-        activeBody = ManagerPayrollScreen(onBack: () => setState(() => _currentNavIndex = 0));
+        activeBody = ManagerPayrollScreen(onBack: () => setState(() => _currentNavIndex = 2));
         break;
-      case 0:
+      case 2:
       default:
         activeBody = _buildProfessionalManagerDashboard();
         break;
@@ -489,11 +491,11 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         mainAxisSpacing: 10,
         childAspectRatio: 1.05,
         children: [
-          _buildHubTile("1. Staff Directory", Iconsax.people, const Color(0xFF2563EB), const Color(0xFFEFF6FF), () => setState(() => _currentNavIndex = 1)),
-          _buildHubTile("2. Attendance", Iconsax.calendar_tick, const Color(0xFF059669), const Color(0xFFECFDF5), () => setState(() => _currentNavIndex = 2)),
-          _buildHubTile("3. Leave Approvals", Iconsax.verify, const Color(0xFF7C3AED), const Color(0xFFFAF5FF), () => setState(() => _currentNavIndex = 3), badgeCount: pendingLeaves),
+          _buildHubTile("1. Staff Directory", Iconsax.people, const Color(0xFF2563EB), const Color(0xFFEFF6FF), () => setState(() => _currentNavIndex = 0)),
+          _buildHubTile("2. Attendance", Iconsax.calendar_tick, const Color(0xFF059669), const Color(0xFFECFDF5), () => setState(() => _currentNavIndex = 5)),
+          _buildHubTile("3. Leave Approvals", Iconsax.verify, const Color(0xFF7C3AED), const Color(0xFFFAF5FF), () => setState(() => _currentNavIndex = 1), badgeCount: pendingLeaves),
           _buildHubTile("4. Daily Tasks", Iconsax.task_square, const Color(0xFF0284C7), const Color(0xFFF0F9FF), () => setState(() => _currentNavIndex = 6), badgeCount: pendingTasks),
-          _buildHubTile("5. Sales Targets", Iconsax.radar_2, const Color(0xFFDC2626), const Color(0xFFFEF2F2), () => setState(() => _currentNavIndex = 4), badgeCount: pendingSales),
+          _buildHubTile("5. Sales Targets", Iconsax.radar_2, const Color(0xFFDC2626), const Color(0xFFFEF2F2), () => setState(() => _currentNavIndex = 3), badgeCount: pendingSales),
           _buildHubTile("Payroll", Iconsax.wallet_money, const Color(0xFFD97706), const Color(0xFFFFFBEB), () => setState(() => _currentNavIndex = 7)),
         ],
       );
@@ -648,7 +650,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   }
 
   // ==========================================
-  // BOTTOM NAVIGATION BAR WITH REAL LIVE BADGES & PROFILE/LOGOUT
+  // REDESIGNED LIGHTWEIGHT 5-ITEM MANAGER BOTTOM NAV BAR
   // ==========================================
   Widget _buildManagerBottomNav() {
     return Obx(() {
@@ -657,80 +659,41 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       final pendingSales = dashboardController.pendingSalesLogsCount.value;
       final totalApprovals = pendingLeaves + pendingTasks + pendingSales;
 
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildManagerNavItem(0, Icons.grid_view_rounded, Icons.grid_view_outlined, "Overview"),
-                _buildManagerNavItem(1, Icons.people_alt_rounded, Icons.people_outline_rounded, "Team"),
-                _buildManagerNavItem(2, Icons.event_available_rounded, Icons.event_available_outlined, "Attendance"),
-                _buildManagerNavItem(3, Icons.fact_check_rounded, Icons.fact_check_outlined, "Approvals", badgeCount: totalApprovals),
-                _buildManagerNavItem(4, Icons.track_changes_rounded, Icons.track_changes_outlined, "Targets"),
-                _buildManagerNavItem(5, Icons.person_rounded, Icons.person_outline_rounded, "Profile"),
-              ],
-            ),
+      return HrmBottomNavBar(
+        currentIndex: _currentNavIndex > 4 ? 2 : _currentNavIndex,
+        onTap: (index) {
+          HapticFeedback.selectionClick();
+          setState(() => _currentNavIndex = index);
+        },
+        items: [
+          const HrmNavItem(
+            label: "Team",
+            activeIcon: Icons.people_alt_rounded,
+            inactiveIcon: Icons.people_outline_rounded,
           ),
-        ),
+          HrmNavItem(
+            label: "Approvals",
+            activeIcon: Icons.fact_check_rounded,
+            inactiveIcon: Icons.fact_check_outlined,
+            badgeCount: totalApprovals,
+          ),
+          const HrmNavItem(
+            label: "Home",
+            activeIcon: Icons.home_rounded,
+            inactiveIcon: Icons.home_outlined,
+          ),
+          const HrmNavItem(
+            label: "Performance",
+            activeIcon: Icons.insights_rounded,
+            inactiveIcon: Icons.insights_outlined,
+          ),
+          const HrmNavItem(
+            label: "Me",
+            activeIcon: Icons.person_rounded,
+            inactiveIcon: Icons.person_outline_rounded,
+          ),
+        ],
       );
     });
-  }
-
-  Widget _buildManagerNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label, {int badgeCount = 0}) {
-    final isSelected = _currentNavIndex == index;
-
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _currentNavIndex = index);
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Badge(
-              isLabelVisible: badgeCount > 0,
-              label: Text(badgeCount.toString()),
-              backgroundColor: const Color(0xFFEF4444),
-              child: Icon(
-                isSelected ? activeIcon : inactiveIcon,
-                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-                size: 22,
-              ),
-            ),
-            const SizedBox(height: 3),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 180),
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-              ),
-              child: Text(label),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
